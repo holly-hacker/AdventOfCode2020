@@ -63,10 +63,31 @@ fn test2() {
 }
 
 fn main() {
+    let time_total = Instant::now();
+
+    {
+        let time_reading = Instant::now();
+        let passwords = read_input();
+        println!("took {:?} to read input", time_reading.elapsed());
+
+        let time_solving = Instant::now();
+        let count_correct = passwords.iter().filter(|p| p.check_1()).count();
+        println!("took {:?} to solve 1", time_solving.elapsed());
+        println!("solution 1: {}", count_correct);
+
+        let time_solving = Instant::now();
+        let count_correct = passwords.iter().filter(|p| p.check_2()).count();
+        println!("took {:?} to solve 2", time_solving.elapsed());
+        println!("solution 2: {}", count_correct);
+    }
+
+    println!("took {:?} in total", time_total.elapsed());
+}
+
+fn read_input() -> Vec<PolicyWithPassword> {
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
-    let mut passwords = Vec::new(); // todo: capacity
-    let time_reading = Instant::now();
+    let mut passwords = Vec::with_capacity(1000);
     loop {
         if let Some(parsed) = parse_line(&mut input) {
             passwords.push(parsed);
@@ -74,17 +95,7 @@ fn main() {
             break;
         }
     }
-    println!("took {:?} to read input", time_reading.elapsed());
-
-    let time_solving = Instant::now();
-    let count_correct = passwords.iter().filter(|p| p.check_1()).count();
-    println!("took {:?} to solve 1", time_solving.elapsed());
-    println!("correct: {}", count_correct);
-
-    let time_solving = Instant::now();
-    let count_correct = passwords.iter().filter(|p| p.check_2()).count();
-    println!("took {:?} to solve 2", time_solving.elapsed());
-    println!("correct: {}", count_correct);
+    passwords
 }
 
 fn parse_line(mut text: &mut impl BufRead) -> Option<PolicyWithPassword> {
