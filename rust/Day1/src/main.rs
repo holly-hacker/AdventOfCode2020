@@ -1,25 +1,31 @@
 use std::{io::BufRead, time::Instant};
 
-const TEST_INPUT1: &[usize] = &[1721, 979, 366, 299, 675, 1456];
+// const TEST_INPUT1: &[usize] = &[1721, 979, 366, 299, 675, 1456];
 
 fn main() {
-    let now = Instant::now();
-    let lines = read_challenge_input();
-    let time_reading = now.elapsed();
-    println!("took {:?} to read input", time_reading);
-    
-    let now = Instant::now();
-    let solution = solve_challenge_1(&lines[..]);
-    let time_solving = now.elapsed();
-    println!("took {:?} to solve", time_solving);
-    println!("solution 1: {}", solution);
-    
-    let now = Instant::now();
-    let solution = solve_challenge_2(&lines[..]);
-    let time_solving = now.elapsed();
-    println!("took {:?} to solve", time_solving);
-    println!("solution 2: {}", solution);
+    let start = Instant::now();
 
+    // scope to ensure everything is dropped before we check final
+    {
+        let now = Instant::now();
+        let lines = read_challenge_input();
+        let time_reading = now.elapsed();
+        println!("took {:?} to read input", time_reading);
+        
+        let now = Instant::now();
+        let solution = solve_challenge_1(&lines[..]);
+        let time_solving = now.elapsed();
+        println!("took {:?} to solve", time_solving);
+        println!("solution 1: {}", solution);
+        
+        let now = Instant::now();
+        let solution = solve_challenge_2(&lines[..]);
+        let time_solving = now.elapsed();
+        println!("took {:?} to solve", time_solving);
+        println!("solution 2: {}", solution);
+    }
+
+    println!("took {:?} in total", start.elapsed());
 }
 
 fn read_challenge_input() -> Vec<usize> {
