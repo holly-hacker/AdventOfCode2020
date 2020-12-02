@@ -10,18 +10,20 @@ struct PolicyWithPassword {
 struct Policy {
     pub min: usize,
     pub max: usize,
-    pub chr: char,
+    pub chr: u8,
 }
 
 impl PolicyWithPassword {
     pub fn check_1(&self) -> bool {
-        let iter = self.password.chars().filter(|c| *c == self.policy.chr);
+        let iter = self.password.bytes().filter(|c| *c == self.policy.chr);
         let count = iter.take(self.policy.max + 1).count();
         count >= self.policy.min && count <= self.policy.max
     }
+
     pub fn check_2(&self) -> bool {
-        (self.password.bytes().nth(self.policy.min - 1) == Some(self.policy.chr as u8))
-            ^ (self.password.bytes().nth(self.policy.max - 1) == Some(self.policy.chr as u8))
+        let min = self.password.bytes().nth(self.policy.min - 1).unwrap();
+        let max = self.password.bytes().nth(self.policy.max - 1).unwrap();
+        (min == self.policy.chr) ^ (max == self.policy.chr)
     }
 }
 
@@ -118,9 +120,9 @@ fn parse_line(mut text: &mut impl BufRead) -> Option<PolicyWithPassword> {
         policy: Policy {
             min: min as usize,
             max: max as usize,
-            chr,
+            chr: chr as u8,
         },
-        password: password.trim_end().into(),
+        password: password[..password.len()-1].into(),
     })
 }
 
