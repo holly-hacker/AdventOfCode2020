@@ -1,7 +1,10 @@
+use std::time::Instant;
+
 #[derive(Debug)]
 struct Map(Vec<Vec<bool>>);
 
 impl Map {
+    #[cfg(test)]
     pub fn to_string(&self) -> String {
         self.0
             .iter()
@@ -47,16 +50,32 @@ impl Map {
 }
 
 fn main() {
+    let time_total = Instant::now();
+
+    {
+        let time_reading = Instant::now();
+        let input = parse_stdin();
+        println!("took {:?} to read input", time_reading.elapsed());
+
+        let time_solving = Instant::now();
+        let count_correct = input.solve_1();
+        println!("took {:?} to solve 1", time_solving.elapsed());
+        println!("solution 1: {}", count_correct);
+
+        let time_solving = Instant::now();
+        let count_correct = input.solve_2();
+        println!("took {:?} to solve 2", time_solving.elapsed());
+        println!("solution 2: {}", count_correct);
+    }
+
+    println!("took {:?} in total", time_total.elapsed());
+}
+
+fn parse_stdin() -> Map {
     use std::io::Read;
     let mut input_string = String::new();
-    std::io::stdin().read_to_string(&mut input_string);
-    let input = parse_string(&input_string);
-
-    let solution = input.solve_1();
-    println!("{}", solution);
-
-    let solution = input.solve_2();
-    println!("{}", solution);
+    std::io::stdin().read_to_string(&mut input_string).expect("Failed to parse input");
+    parse_string(&input_string)
 }
 
 fn parse_string(input: &str) -> Map {
