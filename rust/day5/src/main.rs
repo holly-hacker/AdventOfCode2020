@@ -1,5 +1,7 @@
-use std::{convert::TryInto, io::Read};
+use std::{convert::TryInto, io::Read, time::Duration, time::Instant};
 
+// NOTE: could be made cleaner without overloads RFC2000 gets implementerd
+// https://rust-lang.github.io/rfcs/2000-const-generics.html
 fn decode_partition_10(data: &[u8; 10]) -> usize {
     data.iter()
         .enumerate()
@@ -35,6 +37,16 @@ fn decode_partition_3(data: &[u8; 3]) -> usize {
         .sum()
 }
 
+fn solve_part_1(data: &[bool; KEYSPACE]) -> usize {
+    data.iter()
+        .enumerate()
+        .rev()
+        .filter(|(_, b)| **b)
+        .next()
+        .unwrap()
+        .0
+}
+
 fn solve_part_2(data: &[bool; KEYSPACE]) -> usize {
     data.iter()
         .enumerate()
@@ -47,31 +59,45 @@ fn solve_part_2(data: &[bool; KEYSPACE]) -> usize {
         .0
 }
 
+fn time<T, F>(fun: F) -> (T, Duration)
+where
+    F: FnOnce() -> T,
+{
+    let now = Instant::now();
+    let ret = fun();
+    let elapsed = now.elapsed();
+    (ret, elapsed)
+}
+
 const KEYSPACE: usize = 2 << (10 - 1);
 fn main() {
-    let mut string = String::new();
-    std::io::stdin().lock().read_to_string(&mut string).unwrap();
-    let x = string
-        .lines()
-        .map(|line| line.as_bytes().try_into().unwrap())
-        .collect::<Vec<[u8; 10]>>();
+    let (input_data, time_read) = time(|| {
+        let mut string = String::new();
+        std::io::stdin().lock().read_to_string(&mut string).unwrap();
+        let input = string
+            .lines()
+            .map(|line| line.as_bytes().try_into().unwrap())
+            .collect::<Vec<[u8; 10]>>();
+        input
+    });
 
-    let mut data = [false; KEYSPACE];
-    for f in x {
-        let decoded = decode_partition_10(&f);
-        data[decoded] = true;
-    }
-    let max = (&data)
-        .iter()
-        .enumerate()
-        .rev()
-        .filter(|(_, b)| **b)
-        .next()
-        .unwrap()
-        .0;
-
-    println!("max: {}", max);
-    println!("2: {}", solve_part_2(&data));
+    let (data, time_parse) = time(|| {
+        let mut data = [false; KEYSPACE];
+        for f in input_data {
+            let decoded = decode_partition_10(&f);
+            data[decoded] = true;
+        }
+        data
+    });
+    let (solution_1, time_1) = time(|| solve_part_1(&data));
+    let (solution_2, time_2) = time(|| solve_part_2(&data));
+    
+    println!("solution 1: {}", solution_1);
+    println!("solution 2: {}", solution_2);
+    println!("Time to read input to string: {:?}", time_read);
+    println!("Time to parse input: {:?}", time_parse);
+    println!("Time to solve 1: {:?}", time_1);
+    println!("Time to solve 2: {:?}", time_2);
 }
 
 #[cfg(test)]
