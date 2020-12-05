@@ -1,43 +1,62 @@
 use std::{convert::TryInto, io::Read};
 
 fn decode_partition_10(data: &[u8; 10]) -> usize {
-    data.iter().enumerate().map(|(i, c)| match c {
-        b'B' | b'R' => 1 << (10 - 1 - i),
-        b'F' | b'L' => 0,
-        _ => panic!("Unknown char {}", c),
-    }).sum()
+    data.iter()
+        .enumerate()
+        .map(|(i, c)| match c {
+            b'B' | b'R' => 1 << (10 - 1 - i),
+            b'F' | b'L' => 0,
+            _ => panic!("Unknown char {}", c),
+        })
+        .sum()
 }
 
 #[cfg(test)]
 fn decode_partition_7(data: &[u8; 7]) -> usize {
-    data.iter().enumerate().map(|(i, c)| match c {
-        b'B' => 1 << (7 - 1 - i),
-        b'F' => 0,
-        _ => panic!("Unknown char {}", c),
-    }).sum()
+    data.iter()
+        .enumerate()
+        .map(|(i, c)| match c {
+            b'B' => 1 << (7 - 1 - i),
+            b'F' => 0,
+            _ => panic!("Unknown char {}", c),
+        })
+        .sum()
 }
 
 #[cfg(test)]
 fn decode_partition_3(data: &[u8; 3]) -> usize {
-    data.iter().enumerate().map(|(i, c)| match c {
-        b'R' => 1 << (3 - 1 - i),
-        b'L' => 0,
-        _ => panic!("Unknown char {}", c),
-    }).sum()
+    data.iter()
+        .enumerate()
+        .map(|(i, c)| match c {
+            b'R' => 1 << (3 - 1 - i),
+            b'L' => 0,
+            _ => panic!("Unknown char {}", c),
+        })
+        .sum()
 }
 
 fn main() {
     let mut string = String::new();
     std::io::stdin().lock().read_to_string(&mut string).unwrap();
-    let x = string.lines().map(|line| line.as_bytes().try_into().unwrap()).collect::<Vec<[u8; 10]>>();
+    let x = string
+        .lines()
+        .map(|line| line.as_bytes().try_into().unwrap())
+        .collect::<Vec<[u8; 10]>>();
 
-    const KEYSPACE: usize = 2 << (10-1);
+    const KEYSPACE: usize = 2 << (10 - 1);
     let mut data = [false; KEYSPACE];
     for f in x {
         let decoded = decode_partition_10(&f);
         data[decoded] = true;
     }
-    let max = (&data).iter().enumerate().rev().filter(|(_, b)| **b).next().unwrap().0;
+    let max = (&data)
+        .iter()
+        .enumerate()
+        .rev()
+        .filter(|(_, b)| **b)
+        .next()
+        .unwrap()
+        .0;
 
     println!("max: {}", max);
 }
