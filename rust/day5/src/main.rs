@@ -35,6 +35,19 @@ fn decode_partition_3(data: &[u8; 3]) -> usize {
         .sum()
 }
 
+fn solve_part_2(data: &[bool; KEYSPACE]) -> usize {
+    data.iter()
+        .enumerate()
+        // first part are all false
+        .skip_while(|(_, b)| !**b)
+        // find first false
+        .skip_while(|(_, b)| **b)
+        .next()
+        .unwrap()
+        .0
+}
+
+const KEYSPACE: usize = 2 << (10 - 1);
 fn main() {
     let mut string = String::new();
     std::io::stdin().lock().read_to_string(&mut string).unwrap();
@@ -43,7 +56,6 @@ fn main() {
         .map(|line| line.as_bytes().try_into().unwrap())
         .collect::<Vec<[u8; 10]>>();
 
-    const KEYSPACE: usize = 2 << (10 - 1);
     let mut data = [false; KEYSPACE];
     for f in x {
         let decoded = decode_partition_10(&f);
@@ -59,6 +71,7 @@ fn main() {
         .0;
 
     println!("max: {}", max);
+    println!("2: {}", solve_part_2(&data));
 }
 
 #[cfg(test)]
