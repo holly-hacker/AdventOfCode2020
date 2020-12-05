@@ -39,14 +39,14 @@ fn solve_part_2(data: &[bool; KEYSPACE]) -> usize {
 
 const KEYSPACE: usize = 2 << (10 - 1);
 fn main() {
-    let (input_data, time_read) = time(|| split(read_stdin()));
-    let (data, time_parse) = time(|| parse_input(input_data));
+    let (input_data, time_read) = time(|| read_stdin());
+    let (data, time_parse) = time(|| parse_input(split(input_data)));
     let (solution_1, time_1) = time(|| solve_part_1(&data));
     let (solution_2, time_2) = time(|| solve_part_2(&data));
 
     println!("solution 1: {}", solution_1);
     println!("solution 2: {}", solution_2);
-    println!("Time to read input: {:?}", time_read);
+    println!("Time to read stdin: {:?}", time_read);
     println!("Time to parse input: {:?}", time_parse);
     println!("Time to solve 1: {:?}", time_1);
     println!("Time to solve 2: {:?}", time_2);
