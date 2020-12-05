@@ -84,10 +84,7 @@ impl<'a> Passport<'a> {
 
         let ecl = self.ecl.unwrap();
 
-        if !match ecl {
-            "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth" => true,
-            _ => false,
-        } {
+        if !matches!(ecl, "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth") {
             return false;
         }
 
