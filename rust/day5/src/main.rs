@@ -15,30 +15,6 @@ fn decode_partition_10(data: &[u8; 10]) -> usize {
         .sum()
 }
 
-#[cfg(test)]
-fn decode_partition_7(data: &[u8; 7]) -> usize {
-    data.iter()
-        .enumerate()
-        .map(|(i, c)| match c {
-            b'B' => 1 << (7 - 1 - i),
-            b'F' => 0,
-            _ => panic!("Unknown char {}", c),
-        })
-        .sum()
-}
-
-#[cfg(test)]
-fn decode_partition_3(data: &[u8; 3]) -> usize {
-    data.iter()
-        .enumerate()
-        .map(|(i, c)| match c {
-            b'R' => 1 << (3 - 1 - i),
-            b'L' => 0,
-            _ => panic!("Unknown char {}", c),
-        })
-        .sum()
-}
-
 fn solve_part_1(data: &[bool; KEYSPACE]) -> usize {
     data.iter()
         .enumerate()
@@ -97,23 +73,9 @@ mod tests {
 
     #[test]
     fn test_binary_partition() {
-        assert_eq!(127, decode_partition_7(b"BBBBBBB"));
-        assert_eq!(0, decode_partition_7(b"FFFFFFF"));
-        assert_eq!(44, decode_partition_7(b"FBFBBFF"));
-        assert_eq!(70, decode_partition_7(b"BFFFBBF"));
-        assert_eq!(14, decode_partition_7(b"FFFBBBF"));
-        assert_eq!(102, decode_partition_7(b"BBFFBBF"));
-
-        assert_eq!(7, decode_partition_3(b"RRR"));
-        assert_eq!(0, decode_partition_3(b"LLL"));
-        assert_eq!(4, decode_partition_3(b"RLL"));
-
         assert_eq!(357, decode_partition_10(b"FBFBBFFRLR"));
         assert_eq!(567, decode_partition_10(b"BFFFBBFRRR"));
         assert_eq!(119, decode_partition_10(b"FFFBBBFRRR"));
         assert_eq!(820, decode_partition_10(b"BBFFBBFRLL"));
     }
-
-    #[test]
-    fn test_solution_1() {}
 }
