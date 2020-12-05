@@ -1,4 +1,6 @@
-use std::{io::BufRead, time::Instant};
+use std::io::BufRead;
+
+std::include!("../../helpers.rs");
 
 #[derive(Debug)]
 struct PolicyWithPassword {
@@ -65,25 +67,21 @@ fn test2() {
 }
 
 fn main() {
-    let time_total = Instant::now();
+    let (_, time_total) = time(|| {
+        let (passwords, time_reading) = time(|| read_input());
+        let (count_correct_1, time_solving_1) =
+            time(|| passwords.iter().filter(|p| p.check_1()).count());
+        let (count_correct_2, time_solving_2) =
+            time(|| passwords.iter().filter(|p| p.check_2()).count());
 
-    {
-        let time_reading = Instant::now();
-        let passwords = read_input();
-        println!("took {:?} to read input", time_reading.elapsed());
+        println!("solution 1: {}", count_correct_1);
+        println!("solution 2: {}", count_correct_2);
+        println!("took {:?} to read input", time_reading);
+        println!("took {:?} to solve 1", time_solving_1);
+        println!("took {:?} to solve 2", time_solving_2);
+    });
 
-        let time_solving = Instant::now();
-        let count_correct = passwords.iter().filter(|p| p.check_1()).count();
-        println!("took {:?} to solve 1", time_solving.elapsed());
-        println!("solution 1: {}", count_correct);
-
-        let time_solving = Instant::now();
-        let count_correct = passwords.iter().filter(|p| p.check_2()).count();
-        println!("took {:?} to solve 2", time_solving.elapsed());
-        println!("solution 2: {}", count_correct);
-    }
-
-    println!("took {:?} in total", time_total.elapsed());
+    println!("took {:?} in total", time_total);
 }
 
 fn read_input() -> Vec<PolicyWithPassword> {

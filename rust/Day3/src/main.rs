@@ -1,4 +1,4 @@
-use std::time::Instant;
+std::include!("../../helpers.rs");
 
 #[derive(Debug)]
 struct Map(Vec<Vec<bool>>);
@@ -50,32 +50,25 @@ impl Map {
 }
 
 fn main() {
-    let time_total = Instant::now();
+    let (_, time_total) = time(||
 
     {
-        let time_reading = Instant::now();
-        let input = parse_stdin();
-        println!("took {:?} to read input", time_reading.elapsed());
+        let (stdin, time_reading) = time(|| read_stdin());
+        let (input, time_parsing) = time(|| parse_string(&stdin));
 
-        let time_solving = Instant::now();
-        let count_correct = input.solve_1();
-        println!("took {:?} to solve 1", time_solving.elapsed());
-        println!("solution 1: {}", count_correct);
+        let (count_correct_1, time_solving_1) = time(|| input.solve_1());
+        let (count_correct_2, time_solving_2) = time(|| input.solve_2());
+        
+        println!("solution 1: {}", count_correct_1);
+        println!("solution 2: {}", count_correct_2);
+        
+        println!("took {:?} to read stdin", time_reading);
+        println!("took {:?} to parse input", time_parsing);
+        println!("took {:?} to solve 1", time_solving_1);
+        println!("took {:?} to solve 2", time_solving_2);
+    });
 
-        let time_solving = Instant::now();
-        let count_correct = input.solve_2();
-        println!("took {:?} to solve 2", time_solving.elapsed());
-        println!("solution 2: {}", count_correct);
-    }
-
-    println!("took {:?} in total", time_total.elapsed());
-}
-
-fn parse_stdin() -> Map {
-    use std::io::Read;
-    let mut input_string = String::new();
-    std::io::stdin().read_to_string(&mut input_string).expect("Failed to parse input");
-    parse_string(&input_string)
+    println!("took {:?} in total", time_total);
 }
 
 fn parse_string(input: &str) -> Map {

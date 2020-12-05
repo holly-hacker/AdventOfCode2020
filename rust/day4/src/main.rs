@@ -1,5 +1,4 @@
-use std::io::{stdin, Read};
-use std::time::Instant;
+std::include!("../../helpers.rs");
 
 #[derive(Debug, Default, Clone)]
 struct Passport<'a> {
@@ -115,27 +114,26 @@ fn parse_string(data: &str) -> Vec<Passport> {
 }
 
 fn main() {
-    let time_total = Instant::now();
+    let (_, time_total) = time(|| {
+        let (str, time_reading) = time(|| read_stdin());
+        let (data, time_parsing) = time(|| parse_string(&str));
 
-    {
-        let time_reading = Instant::now();
-        let mut str = String::new();
-        stdin().lock().read_to_string(&mut str).unwrap();
-        let data = parse_string(&str);
-        println!("took {:?} to read input", time_reading.elapsed());
+        let (count_correct_1, time_solving_1) =
+            time(|| data.iter().filter(|x| x.has_data()).count());
 
-        let time_solving = Instant::now();
-        let count_correct = data.iter().filter(|x| x.has_data()).count();
-        println!("took {:?} to solve 1", time_solving.elapsed());
-        println!("solution 1: {}", count_correct);
+        let (count_correct_2, time_solving_2) =
+            time(|| data.iter().filter(|x| x.is_valid()).count());
 
-        let time_solving = Instant::now();
-        let count_correct = data.iter().filter(|x| x.is_valid()).count();
-        println!("took {:?} to solve 2", time_solving.elapsed());
-        println!("solution 2: {}", count_correct);
-    }
+        println!("solution 1: {}", count_correct_1);
+        println!("solution 2: {}", count_correct_2);
 
-    println!("took {:?} in total", time_total.elapsed());
+        println!("took {:?} to read input", time_reading);
+        println!("took {:?} to parse input", time_parsing);
+        println!("took {:?} to solve 1", time_solving_1);
+        println!("took {:?} to solve 2", time_solving_2);
+    });
+
+    println!("took {:?} in total", time_total);
 }
 
 #[cfg(test)]

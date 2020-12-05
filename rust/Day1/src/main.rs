@@ -1,35 +1,29 @@
-use std::{io::BufRead, time::Instant};
+std::include!("../../helpers.rs");
 
 // const TEST_INPUT1: &[usize] = &[1721, 979, 366, 299, 675, 1456];
 
 fn main() {
-    let start = Instant::now();
-
-    // scope to ensure everything is dropped before we check final
+    let ((), time_total) = time(||
     {
-        let now = Instant::now();
-        let lines = read_challenge_input();
-        let time_reading = now.elapsed();
+        let (stdin, time_reading) = time(|| read_stdin());
+        let (lines, time_parsing) = time(|| read_challenge_input(stdin));
+        
+        let (solution_1, time_solving_1) = time(|| solve_challenge_1(&lines[..]));
+        let (solution_2, time_solving_2) = time(|| solve_challenge_2(&lines[..]));
+        
+        println!("solution 1: {}", solution_1);
+        println!("solution 2: {}", solution_2);
         println!("took {:?} to read input", time_reading);
-        
-        let now = Instant::now();
-        let solution = solve_challenge_1(&lines[..]);
-        let time_solving = now.elapsed();
-        println!("took {:?} to solve", time_solving);
-        println!("solution 1: {}", solution);
-        
-        let now = Instant::now();
-        let solution = solve_challenge_2(&lines[..]);
-        let time_solving = now.elapsed();
-        println!("took {:?} to solve", time_solving);
-        println!("solution 2: {}", solution);
-    }
+        println!("took {:?} to parse input", time_parsing);
+        println!("took {:?} to solve", time_solving_1);
+        println!("took {:?} to solve", time_solving_2);
+    });
 
-    println!("took {:?} in total", start.elapsed());
+    println!("took {:?} in total", time_total);
 }
 
-fn read_challenge_input() -> Vec<usize> {
-    std::io::stdin().lock().lines().map(|line| line.unwrap().parse().unwrap()).collect()
+fn read_challenge_input(input: String) -> Vec<usize> {
+    input.lines().map(|line| line.parse().unwrap()).collect()
 }
 
 fn solve_challenge_1(input: &[usize]) -> usize {

@@ -1,5 +1,7 @@
 use std::convert::TryInto;
 
+std::include!("../../helpers.rs");
+
 // NOTE: could be made cleaner without overloads RFC2000 gets implementerd
 // https://rust-lang.github.io/rfcs/2000-const-generics.html
 fn decode_partition_10(data: &[u8; 10]) -> usize {
@@ -57,23 +59,6 @@ fn solve_part_2(data: &[bool; KEYSPACE]) -> usize {
         .next()
         .unwrap()
         .0
-}
-
-fn time<T, F>(fun: F) -> (T, std::time::Duration)
-where
-    F: FnOnce() -> T,
-{
-    let now = std::time::Instant::now();
-    let ret = fun();
-    let elapsed = now.elapsed();
-    (ret, elapsed)
-}
-
-fn read_stdin() -> String {
-    use std::io::Read;
-    let mut string = String::new();
-    std::io::stdin().lock().read_to_string(&mut string).unwrap();
-    string
 }
 
 const KEYSPACE: usize = 2 << (10 - 1);
