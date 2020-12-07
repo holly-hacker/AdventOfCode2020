@@ -1,15 +1,23 @@
+mod string_interner;
+
 use std::collections::HashMap;
+use string_interner::StringInterner;
 
 include!("../../helpers.rs");
 
-// TODO: could intern strings for perf
 // TODO: store in tree/graph form
 
-type InputData = HashMap<String, Vec<ContainedLuggage>>;
+type StringKey = usize;
+
+#[derive(Default)]
+pub struct InputData {
+    pub map: HashMap<StringKey, Vec<ContainedLuggage>>,
+    pub cache: StringInterner,
+}
 
 #[derive(Debug, PartialEq, Eq)]
-struct ContainedLuggage {
-    color: String,
+pub struct ContainedLuggage {
+    color: StringKey,
     count: usize,
 }
 
@@ -29,68 +37,72 @@ fn main() {
 
 fn solve_1(data: &InputData) -> usize {
     const TARGET_COLOR: &str = "shiny gold";
+    let target_color = data.cache.get_key(TARGET_COLOR);
 
-    data.keys()
-        .map(|k| (k != TARGET_COLOR && can_hold_color(k, TARGET_COLOR, data)) as usize)
+    data.map
+        .keys()
+        .map(|k| (*k != target_color && can_hold_color(*k, target_color, data)) as usize)
         .sum()
 }
 
 fn solve_2(data: &InputData) -> usize {
     const TARGET_COLOR: &str = "shiny gold";
-    check_required_bags(TARGET_COLOR, data)
+    let target_color = data.cache.get_key(TARGET_COLOR);
+
+    check_required_bags(target_color, data)
 }
 
-fn can_hold_color(color: &str, target: &str, data_set: &InputData) -> bool {
+fn can_hold_color(color: StringKey, target: StringKey, data_set: &InputData) -> bool {
     if color == target {
         return true;
     }
 
-    let contained = &data_set[color];
+    let contained = &data_set.map[&color];
     contained
         .iter()
-        .any(|c| can_hold_color(&c.color, target, data_set))
+        .any(|c| can_hold_color(c.color, target, data_set))
 }
 
-fn check_required_bags(color: &str, data_set: &InputData) -> usize {
-    let contained = &data_set[color];
+fn check_required_bags(color: StringKey, data_set: &InputData) -> usize {
+    let contained = &data_set.map[&color];
     contained
         .iter()
-        .map(|c| (check_required_bags(&c.color, data_set) + 1) * c.count)
+        .map(|c| (check_required_bags(c.color, data_set) + 1) * c.count)
         .sum()
 }
 
 fn parse_input(input: &str) -> InputData {
-    let mut v = HashMap::new();
+    let mut data = InputData::default();
 
     for line in input.split('\n') {
         let mut split = line.split(" bags contain ");
         let color = split.next().unwrap();
         let things = split.next().unwrap();
 
-        v.insert(
-            color.into(),
+        data.map.insert(
+            data.cache.get_key_or_insert(color),
             if things == "no other bags." {
                 vec![]
             } else {
-                things
-                    .trim_end_matches('.')
-                    .split(", ")
-                    .map(parse_contained)
-                    .collect()
+                let mut v = vec![];
+                for s in things.trim_end_matches('.').split(", ") {
+                    v.push(parse_contained(s, &mut data.cache));
+                }
+                v
             },
         );
     }
 
-    v
+    data
 }
 
-fn parse_contained(s: &str) -> ContainedLuggage {
+fn parse_contained(s: &str, cache: &mut StringInterner) -> ContainedLuggage {
     let count_unparsed = s.split(' ').next().unwrap();
     let count_len = count_unparsed.len();
     let count = count_unparsed.parse::<usize>().unwrap();
 
     let color_len = s.len() - (count_len + "bag".len() + 2 + if count == 1 { 0 } else { 1 });
-    let color = (&s[count_len + 1..count_len + 1 + color_len]).into();
+    let color = cache.get_key_or_insert(&s[count_len + 1..count_len + 1 + color_len]);
 
     ContainedLuggage { count, color }
 }
@@ -126,18 +138,21 @@ mod tests {
         assert_eq!(
             vec![
                 ContainedLuggage {
-                    color: "bright white".into(),
+                    color: parsed.cache.get_key("bright white"),
                     count: 1,
                 },
                 ContainedLuggage {
-                    color: "muted yellow".into(),
+                    color: parsed.cache.get_key("muted yellow"),
                     count: 2,
                 },
             ],
-            parsed["light red"]
+            parsed.map[&parsed.cache.get_key("light red")]
         );
 
-        assert_eq!(Vec::<ContainedLuggage>::new(), parsed["dotted black"],)
+        assert_eq!(
+            Vec::<ContainedLuggage>::new(),
+            parsed.map[&parsed.cache.get_key("dotted black")],
+        )
     }
 
     #[test]
