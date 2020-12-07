@@ -1,13 +1,11 @@
 mod string_interner;
 
 use std::collections::HashMap;
-use string_interner::StringInterner;
+use string_interner::{StringInterner, StringKey};
 
 include!("../../helpers.rs");
 
 // TODO: store in tree/graph form
-
-type StringKey = usize;
 
 #[derive(Default)]
 pub struct InputData {
@@ -18,7 +16,7 @@ pub struct InputData {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ContainedLuggage {
     color: StringKey,
-    count: usize,
+    count: u16,
 }
 
 fn main() {
@@ -50,7 +48,7 @@ fn solve_1(data: &InputData) -> usize {
     sum
 }
 
-fn solve_2(data: &InputData) -> usize {
+fn solve_2(data: &InputData) -> u16 {
     const TARGET_COLOR: &str = "shiny gold";
     let target_color = data.cache.get_key(TARGET_COLOR);
 
@@ -81,7 +79,7 @@ fn can_hold_color(
     found
 }
 
-fn check_required_bags(color: StringKey, data_set: &InputData) -> usize {
+fn check_required_bags(color: StringKey, data_set: &InputData) -> u16 {
     let contained = &data_set.map[&color];
     contained
         .iter()
@@ -117,7 +115,7 @@ fn parse_input(input: &str) -> InputData {
 fn parse_contained(s: &str, cache: &mut StringInterner) -> ContainedLuggage {
     let count_unparsed = s.split(' ').next().unwrap();
     let count_len = count_unparsed.len();
-    let count = count_unparsed.parse::<usize>().unwrap();
+    let count = count_unparsed.parse::<usize>().unwrap() as u16;
 
     let color_len = s.len() - (count_len + "bag".len() + 2 + if count == 1 { 0 } else { 1 });
     let color = cache.get_key_or_insert(&s[count_len + 1..count_len + 1 + color_len]);
