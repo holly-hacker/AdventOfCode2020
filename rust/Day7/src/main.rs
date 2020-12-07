@@ -1,15 +1,9 @@
-use std::todo;
+use std::{collections::HashMap, todo};
 
 include!("../../helpers.rs");
 
 // TODO: could intern strings for perf
 // TODO: store in tree/graph form
-
-#[derive(Debug, PartialEq, Eq)]
-struct LuggageRule {
-    color: String,
-    rules: Vec<ContainedLuggage>,
-}
 
 #[derive(Debug, PartialEq, Eq)]
 struct ContainedLuggage {
@@ -20,22 +14,23 @@ struct ContainedLuggage {
 fn main() {
     let (stdin, time_reading) = time(|| read_stdin());
     let (input, time_parsing) = time(|| parse_input(&stdin));
+    // let (solution_1, time_solve_1) = time(|| solve_1(input));
 
     println!("took {:?} to read input", time_reading);
     println!("took {:?} to parse input", time_parsing);
 }
 
-fn parse_input(input: &str) -> Vec<LuggageRule> {
-    let mut v = vec![];
+fn parse_input(input: &str) -> HashMap<String, Vec<ContainedLuggage>> {
+    let mut v = HashMap::new();
 
     for line in input.split('\n') {
         let mut split = line.split(" bags contain ");
         let color = split.next().unwrap();
         let things = split.next().unwrap();
 
-        v.push(LuggageRule {
-            color: color.into(),
-            rules: if things == "no other bags." {
+        v.insert(
+            color.into(),
+            if things == "no other bags." {
                 vec![]
             } else {
                 things
@@ -44,7 +39,7 @@ fn parse_input(input: &str) -> Vec<LuggageRule> {
                     .map(parse_contained)
                     .collect()
             },
-        })
+        );
     }
 
     v
@@ -63,7 +58,7 @@ fn parse_contained(s: &str) -> ContainedLuggage {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_input, ContainedLuggage, LuggageRule};
+    use crate::*;
 
     const TEST_DATA: &str = "\
     light red bags contain 1 bright white bag, 2 muted yellow bags.\n\
@@ -77,33 +72,26 @@ mod tests {
     dotted black bags contain no other bags.";
 
     #[test]
-    fn test() {
+    fn test_parsing() {
         let parsed = parse_input(TEST_DATA);
-        let mut iter = parsed.into_iter();
 
         assert_eq!(
-            LuggageRule {
-                color: "light red".into(),
-                rules: vec![
-                    ContainedLuggage {
-                        color: "bright white".into(),
-                        count: 1,
-                    },
-                    ContainedLuggage {
-                        color: "muted yellow".into(),
-                        count: 2,
-                    },
-                ]
-            },
-            iter.next().unwrap()
+            vec![
+                ContainedLuggage {
+                    color: "bright white".into(),
+                    count: 1,
+                },
+                ContainedLuggage {
+                    color: "muted yellow".into(),
+                    count: 2,
+                },
+            ],
+            parsed["light red"]
         );
 
         assert_eq!(
-            LuggageRule {
-                color: "dotted black".into(),
-                rules: vec![],
-            },
-            iter.last().unwrap()
+            Vec::<ContainedLuggage>::new(),
+            parsed["dotted black"],
         )
     }
 }
