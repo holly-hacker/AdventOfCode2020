@@ -1,40 +1,41 @@
 use std::collections::HashMap;
 
-pub type StringKey = u16;
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct StringKey(u16);
+
+impl StringKey {
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
+}
 
 #[derive(Default)]
 pub struct StringInterner {
-    pub lookup_to_key: HashMap<String, StringKey>,
-    pub lookup_to_string: Vec<String>,
+    pub map: HashMap<String, StringKey>,
+    pub vec: Vec<String>,
 }
 
 impl StringInterner {
-    pub fn new() -> StringInterner {
-        StringInterner {
-            lookup_to_key: HashMap::new(),
-            lookup_to_string: vec![],
-        }
-    }
-
-    pub fn get_key_or_insert(&mut self, string: &str) -> StringKey {
-        if let Some(key) = self.lookup_to_key.get(string) {
+    pub fn intern(&mut self, string: &str) -> StringKey {
+        if let Some(key) = self.map.get(string) {
             *key
         } else {
             let owned = string.to_owned();
-            self.lookup_to_string.push(owned);
-            let key = (self.lookup_to_string.len() - 1) as StringKey;
+            self.vec.push(owned);
+            let key = StringKey((self.vec.len() - 1) as u16);
 
             let owned = string.to_owned();
-            self.lookup_to_key.insert(owned, key);
+            self.map.insert(owned, key);
             key
         }
     }
 
     pub fn get_key(&self, string: &str) -> StringKey {
-        self.lookup_to_key[string] as StringKey
+        self.map[string] as StringKey
     }
 
-    pub fn lookup_string(&self, string: StringKey) -> &str {
-        &self.lookup_to_string[string as usize]
+    #[allow(unused)]
+    pub fn lookup(&self, string: StringKey) -> &str {
+        &self.vec[string.0 as usize]
     }
 }

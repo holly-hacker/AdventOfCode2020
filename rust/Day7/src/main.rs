@@ -9,8 +9,8 @@ include!("../../helpers.rs");
 
 #[derive(Default)]
 pub struct InputData {
-    pub map: HashMap<StringKey, Vec<ContainedLuggage>>,
-    pub cache: StringInterner,
+    map: HashMap<StringKey, Vec<ContainedLuggage>>,
+    cache: StringInterner,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -33,15 +33,30 @@ fn main() {
     println!("took {:?} to solve 2", time_solving_2);
 }
 
+#[derive(Copy, Clone)]
+struct LookupEntry(u8);
+
+const LOOKUP_SIZE: usize = 1024;
+const TRUE: u8 = 1;
+const FALSE: u8 = 0;
+const UNKNOWN: u8 = 2;
+impl LookupEntry {
+    pub fn is_known(&self) -> bool {self.0 != UNKNOWN}
+    pub fn is_true(&self) -> bool {self.0 == TRUE}
+
+    pub fn new_unknown() -> Self { LookupEntry(UNKNOWN) }
+    pub fn from_bool(b: bool) -> Self { LookupEntry(if b { TRUE } else { FALSE }) }
+}
+
 fn solve_1(data: &InputData) -> usize {
     const TARGET_COLOR: &str = "shiny gold";
     let target_color = data.cache.get_key(TARGET_COLOR);
-
+    
     let mut sum = 0;
-    let mut hashmap = HashMap::<StringKey, bool>::new();
+    let mut buffer = [LookupEntry::new_unknown(); LOOKUP_SIZE];
     for k in data.map.keys() {
         // checking against target_color again, since we don't want to return if we are target_color
-        let b = *k != target_color && can_hold_color(*k, target_color, data, &mut hashmap);
+        let b = *k != target_color && can_hold_color(*k, target_color, data, &mut buffer);
         sum += b as usize;
     }
 
@@ -59,15 +74,16 @@ fn can_hold_color(
     color: StringKey,
     target: StringKey,
     data_set: &InputData,
-    cache: &mut HashMap<StringKey, bool>,
+    cache: &mut [LookupEntry; LOOKUP_SIZE],
 ) -> bool {
     if color == target {
-        cache.insert(color, true);
+        cache[color.as_usize()] = LookupEntry::from_bool(true);
         return true;
     }
 
-    if let Some(b) = cache.get(&color) {
-        return *b;
+    let lookup = &cache[color.as_usize()];
+    if lookup.is_known() {
+        return lookup.is_true();
     }
 
     let contained = &data_set.map[&color];
@@ -75,7 +91,7 @@ fn can_hold_color(
         .iter()
         .any(|c| can_hold_color(c.color, target, data_set, cache));
 
-    cache.insert(color, found);
+    cache[color.as_usize()] = LookupEntry::from_bool(found);
     found
 }
 
@@ -96,7 +112,7 @@ fn parse_input(input: &str) -> InputData {
         let things = split.next().unwrap();
 
         data.map.insert(
-            data.cache.get_key_or_insert(color),
+            data.cache.intern(color),
             if things == "no other bags." {
                 vec![]
             } else {
@@ -118,7 +134,7 @@ fn parse_contained(s: &str, cache: &mut StringInterner) -> ContainedLuggage {
     let count = count_unparsed.parse::<usize>().unwrap() as u16;
 
     let color_len = s.len() - (count_len + "bag".len() + 2 + if count == 1 { 0 } else { 1 });
-    let color = cache.get_key_or_insert(&s[count_len + 1..count_len + 1 + color_len]);
+    let color = cache.intern(&s[count_len + 1..count_len + 1 + color_len]);
 
     ContainedLuggage { count, color }
 }
