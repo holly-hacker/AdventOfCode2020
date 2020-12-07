@@ -5,6 +5,8 @@ include!("../../helpers.rs");
 // TODO: could intern strings for perf
 // TODO: store in tree/graph form
 
+type InputData = HashMap<String, Vec<ContainedLuggage>>;
+
 #[derive(Debug, PartialEq, Eq)]
 struct ContainedLuggage {
     color: String,
@@ -14,13 +16,30 @@ struct ContainedLuggage {
 fn main() {
     let (stdin, time_reading) = time(|| read_stdin());
     let (input, time_parsing) = time(|| parse_input(&stdin));
-    // let (solution_1, time_solve_1) = time(|| solve_1(input));
+    let (solution_1, time_solving_1) = time(|| solve_1(input));
 
+    println!("solution 1: {:?}", solution_1);
     println!("took {:?} to read input", time_reading);
     println!("took {:?} to parse input", time_parsing);
+    println!("took {:?} to solve 1", time_solving_1);
 }
 
-fn parse_input(input: &str) -> HashMap<String, Vec<ContainedLuggage>> {
+fn solve_1(data: InputData) -> usize {
+    const TARGET_COLOR: &str = "shiny gold";
+    
+    data.keys().map(|k| (k != TARGET_COLOR && can_hold_color(k, TARGET_COLOR, &data)) as usize).sum()
+}
+
+fn can_hold_color(color: &str, target: &str, data_set: &InputData) -> bool {
+    if color == target {
+        return true;
+    }
+
+    let contained = &data_set[color];
+    contained.iter().any(|c| can_hold_color(&c.color, target, data_set))
+}
+
+fn parse_input(input: &str) -> InputData {
     let mut v = HashMap::new();
 
     for line in input.split('\n') {
@@ -93,5 +112,11 @@ mod tests {
             Vec::<ContainedLuggage>::new(),
             parsed["dotted black"],
         )
+    }
+
+    #[test]
+    fn test_solution_1() {
+        let parsed = parse_input(TEST_DATA);
+        assert_eq!(4, solve_1(parsed));
     }
 }
