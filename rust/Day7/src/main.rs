@@ -39,10 +39,15 @@ fn solve_1(data: &InputData) -> usize {
     const TARGET_COLOR: &str = "shiny gold";
     let target_color = data.cache.get_key(TARGET_COLOR);
 
-    data.map
-        .keys()
-        .map(|k| (*k != target_color && can_hold_color(*k, target_color, data)) as usize)
-        .sum()
+    let mut sum = 0;
+    let mut hashmap = HashMap::<StringKey, bool>::new();
+    for k in data.map.keys() {
+        // checking against target_color again, since we don't want to return if we are target_color
+        let b = *k != target_color && can_hold_color(*k, target_color, data, &mut hashmap);
+        sum += b as usize;
+    }
+
+    sum
 }
 
 fn solve_2(data: &InputData) -> usize {
@@ -52,15 +57,28 @@ fn solve_2(data: &InputData) -> usize {
     check_required_bags(target_color, data)
 }
 
-fn can_hold_color(color: StringKey, target: StringKey, data_set: &InputData) -> bool {
+fn can_hold_color(
+    color: StringKey,
+    target: StringKey,
+    data_set: &InputData,
+    cache: &mut HashMap<StringKey, bool>,
+) -> bool {
     if color == target {
+        cache.insert(color, true);
         return true;
     }
 
+    if let Some(b) = cache.get(&color) {
+        return *b;
+    }
+
     let contained = &data_set.map[&color];
-    contained
+    let found = contained
         .iter()
-        .any(|c| can_hold_color(c.color, target, data_set))
+        .any(|c| can_hold_color(c.color, target, data_set, cache));
+
+    cache.insert(color, found);
+    found
 }
 
 fn check_required_bags(color: StringKey, data_set: &InputData) -> usize {
