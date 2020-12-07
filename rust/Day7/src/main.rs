@@ -1,19 +1,34 @@
 mod string_interner;
 
-use std::collections::HashMap;
 use string_interner::{StringInterner, StringKey};
+use arr_macro::arr;
 
 include!("../../helpers.rs");
 
 // TODO: store in tree/graph form
 
-#[derive(Default)]
+const LOOKUP_SIZE: usize = 1024;
 pub struct InputData {
-    map: HashMap<StringKey, Vec<ContainedLuggage>>,
+    map: [Vec<ContainedLuggage>; LOOKUP_SIZE],
     cache: StringInterner,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl Default for InputData {
+    fn default() -> Self {
+        Self {
+            cache: StringInterner::default(),
+            map: arr![vec![]; 1024], // manually entered
+        }
+    }
+}
+
+impl InputData {
+    pub fn look_up_container(&self, data: StringKey) -> &Vec<ContainedLuggage> {
+        &self.map[data.as_usize()]
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct ContainedLuggage {
     color: StringKey,
     count: u16,
@@ -36,27 +51,35 @@ fn main() {
 #[derive(Copy, Clone)]
 struct LookupEntry(u8);
 
-const LOOKUP_SIZE: usize = 1024;
 const TRUE: u8 = 1;
 const FALSE: u8 = 0;
 const UNKNOWN: u8 = 2;
 impl LookupEntry {
-    pub fn is_known(&self) -> bool {self.0 != UNKNOWN}
-    pub fn is_true(&self) -> bool {self.0 == TRUE}
+    pub fn is_known(&self) -> bool {
+        self.0 != UNKNOWN
+    }
+    pub fn is_true(&self) -> bool {
+        self.0 == TRUE
+    }
 
-    pub fn new_unknown() -> Self { LookupEntry(UNKNOWN) }
-    pub fn from_bool(b: bool) -> Self { LookupEntry(if b { TRUE } else { FALSE }) }
+    pub fn new_unknown() -> Self {
+        LookupEntry(UNKNOWN)
+    }
+    pub fn from_bool(b: bool) -> Self {
+        LookupEntry(if b { TRUE } else { FALSE })
+    }
 }
 
 fn solve_1(data: &InputData) -> usize {
     const TARGET_COLOR: &str = "shiny gold";
     let target_color = data.cache.get_key(TARGET_COLOR);
-    
+
     let mut sum = 0;
     let mut buffer = [LookupEntry::new_unknown(); LOOKUP_SIZE];
-    for k in data.map.keys() {
+    for k in (0..data.map.len()).map(|i| StringKey::from(i as u16)) {
+        // TODO: would create enumerator method
         // checking against target_color again, since we don't want to return if we are target_color
-        let b = *k != target_color && can_hold_color(*k, target_color, data, &mut buffer);
+        let b = k != target_color && can_hold_color(k, target_color, data, &mut buffer);
         sum += b as usize;
     }
 
@@ -86,7 +109,7 @@ fn can_hold_color(
         return lookup.is_true();
     }
 
-    let contained = &data_set.map[&color];
+    let contained = data_set.look_up_container(color);
     let found = contained
         .iter()
         .any(|c| can_hold_color(c.color, target, data_set, cache));
@@ -96,7 +119,7 @@ fn can_hold_color(
 }
 
 fn check_required_bags(color: StringKey, data_set: &InputData) -> u16 {
-    let contained = &data_set.map[&color];
+    let contained = data_set.look_up_container(color);
     contained
         .iter()
         .map(|c| (check_required_bags(c.color, data_set) + 1) * c.count)
@@ -111,18 +134,18 @@ fn parse_input(input: &str) -> InputData {
         let color = split.next().unwrap();
         let things = split.next().unwrap();
 
-        data.map.insert(
-            data.cache.intern(color),
-            if things == "no other bags." {
-                vec![]
-            } else {
-                let mut v = vec![];
-                for s in things.trim_end_matches('.').split(", ") {
-                    v.push(parse_contained(s, &mut data.cache));
-                }
-                v
-            },
-        );
+        let key = data.cache.intern(color);
+        // assert_eq!(data.map.len(), key.as_usize());
+
+        data.map[key.as_usize()] = if things == "no other bags." {
+            vec![]
+        } else {
+            let mut v = vec![];
+            for s in things.trim_end_matches('.').split(", ") {
+                v.push(parse_contained(s, &mut data.cache));
+            }
+            v
+        };
     }
 
     data
@@ -178,12 +201,12 @@ mod tests {
                     count: 2,
                 },
             ],
-            parsed.map[&parsed.cache.get_key("light red")]
+            parsed.map[parsed.cache.get_key("light red").as_usize()]
         );
 
         assert_eq!(
             Vec::<ContainedLuggage>::new(),
-            parsed.map[&parsed.cache.get_key("dotted black")],
+            parsed.map[parsed.cache.get_key("dotted black").as_usize()],
         )
     }
 

@@ -1,9 +1,14 @@
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Default)]
 pub struct StringKey(u16);
 
 impl StringKey {
+    // TODO: bad! this should not be allowed!
+    pub fn from(data: u16) -> Self {
+        StringKey(data)
+    }
+
     pub fn as_usize(&self) -> usize {
         self.0 as usize
     }
