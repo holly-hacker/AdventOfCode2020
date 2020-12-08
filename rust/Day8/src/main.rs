@@ -1,5 +1,7 @@
 include!("../../helpers.rs");
 
+const BUFFER_SIZE: usize = 1024;
+
 #[derive(Default)]
 struct VirtualMachine<'a> {
     accumulator: i32,
@@ -48,17 +50,17 @@ impl<'a> VirtualMachine<'a> {
     }
 
     pub fn run_until_recursion(&mut self) -> bool {
-        let mut recursion_stack = vec![]; // TODO: can be optimized with stack array
+        let mut recursion_lookup = [false; BUFFER_SIZE];
 
         loop {
             let ip = self.get_ip();
             if ip == self.instructions.len() {
                 return true;
             }
-            if recursion_stack.contains(&ip) {
+            if recursion_lookup[ip] {
                 return false;
             }
-            recursion_stack.push(ip);
+            recursion_lookup[ip] = true;
             self.run_instruction();
         }
     }
