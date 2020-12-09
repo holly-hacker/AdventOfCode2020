@@ -148,11 +148,6 @@ fn solve_2_fast_backward(data: &[usize], to_find: usize) -> usize {
         sum -= data[end_idx];
         end_idx -= 1;
 
-        if sum == to_find {
-            let (min, max) = find_min_max(&data[start_idx..end_idx]);
-            return min + max;
-        }
-
         while sum > to_find {
             sum -= data[start_idx];
             start_idx += 1;
