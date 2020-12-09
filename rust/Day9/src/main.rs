@@ -11,7 +11,7 @@ fn main() {
     println!("took {:?} to read stdin", time_reading);
     println!("took {:?} to read input", time_parsing);
     println!("took {:?} to solve 1", time_solving_1);
-    println!("took {:?} to solve 2 (used solution of part 1)", time_solving_2);
+    println!("took {:?} to solve 2 (used solution 1)", time_solving_2);
 }
 
 fn parse_input(input: &str) -> Vec<usize> {
@@ -24,7 +24,10 @@ struct RollingBuffer<T> {
     idx: usize,
 }
 
-impl<T> RollingBuffer<T> where T: std::ops::Add<Output = T> + std::cmp::PartialEq + Copy {
+impl<T> RollingBuffer<T>
+where
+    T: std::ops::Add<Output = T> + std::cmp::PartialEq + Copy,
+{
     const SIZE: usize = 25;
 
     pub fn push(&mut self, data: T) {
@@ -61,7 +64,7 @@ fn find_min_max(data: &[usize]) -> (usize, usize) {
 fn solve_1(data: &[usize]) -> usize {
     let mut buffer = RollingBuffer::<usize>::default();
     let iter = data.into_iter();
-    
+
     for x in iter {
         if buffer.is_filled() && !buffer.contains_sum(*x) {
             return *x;
@@ -82,7 +85,7 @@ fn solve_2_naive(data: &[usize], to_find: usize) -> usize {
             }
         }
     }
-    
+
     unreachable!()
 }
 
@@ -108,11 +111,6 @@ fn solve_2_fast_forward(data: &[usize], to_find: usize) -> usize {
         sum -= data[start_idx];
         start_idx += 1;
 
-        if sum == to_find {
-            let (min, max) = find_min_max(&data[start_idx..end_idx]);
-            return min + max;
-        }
-
         while sum > to_find {
             sum -= data[end_idx];
             end_idx -= 1;
@@ -122,12 +120,16 @@ fn solve_2_fast_forward(data: &[usize], to_find: usize) -> usize {
             let (min, max) = find_min_max(&data[start_idx..end_idx]);
             return min + max;
         }
-
     }
 }
 
 fn solve_2_fast_backward(data: &[usize], to_find: usize) -> usize {
-    let to_find_idx = data.iter().enumerate().find(|(_, &num)| num == to_find).unwrap().0;
+    let to_find_idx = data
+        .iter()
+        .enumerate()
+        .find(|(_, &num)| num == to_find)
+        .unwrap()
+        .0;
     let mut start_idx = to_find_idx - 1;
     let mut end_idx = start_idx;
 
@@ -157,7 +159,6 @@ fn solve_2_fast_backward(data: &[usize], to_find: usize) -> usize {
             let (min, max) = find_min_max(&data[start_idx..end_idx]);
             return min + max;
         }
-
     }
 }
 
