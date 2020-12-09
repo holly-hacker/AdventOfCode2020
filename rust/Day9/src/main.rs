@@ -5,13 +5,16 @@ fn main() {
     let (mut input, time_parsing) = time(|| parse_input(&stdin));
     let (solution_1, time_solving_1) = time(|| solve_1(&mut input));
     let (solution_2, time_solving_2) = time(|| solve_2_naive(&mut input, solution_1));
+    let (solution_2_alt, time_solving_2_alt) = time(|| solve_2_fast_forward(&mut input, solution_1));
 
     println!("solution 1: {}", solution_1);
     println!("solution 2: {}", solution_2);
+    println!("solution 2.5: {}", solution_2_alt);
     println!("took {:?} to read stdin", time_reading);
     println!("took {:?} to read input", time_parsing);
     println!("took {:?} to solve 1", time_solving_1);
     println!("took {:?} to solve 2 (used solution of part 1)", time_solving_2);
+    println!("took {:?} to solve 2 (forward fast)", time_solving_2_alt);
 }
 
 fn parse_input(input: &str) -> Vec<usize> {
@@ -37,14 +40,25 @@ impl<T> RollingBuffer<T> where T: std::ops::Add<Output = T> + std::cmp::PartialE
     }
 
     pub fn contains_sum(&self, x: T) -> bool {
-        for (i, item) in self.buffer.iter().enumerate() {
-            if self.buffer.iter().skip(i).any(|item2| (*item + *item2) == x) {
+        for (i, &item) in self.buffer.iter().enumerate() {
+            if self.buffer.iter().skip(i).any(|&item2| (item + item2) == x) {
                 return true;
             }
         }
 
         false
     }
+}
+
+fn find_min_max(data: &[usize]) -> (usize, usize) {
+    let mut min = usize::MAX;
+    let mut max = usize::MIN;
+    for &d in data {
+        min = usize::min(min, d);
+        max = usize::max(max, d);
+    }
+
+    (min, max)
 }
 
 fn solve_1(data: &[usize]) -> usize {
@@ -61,12 +75,13 @@ fn solve_1(data: &[usize]) -> usize {
     unreachable!();
 }
 
+// fn find_min_max_slice(&[slice])
+
 fn solve_2_naive(data: &[usize], to_find: usize) -> usize {
     for i in 0..data.len() {
         for j in i..data.len() {
-            if data.iter().skip(i).take(j-i).sum::<usize>() == to_find {
-                let min = data.iter().skip(i).take(j-i).min().unwrap();
-                let max = data.iter().skip(i).take(j-i).max().unwrap();
+            if data[i..j].iter().sum::<usize>() == to_find {
+                let (min, max) = find_min_max(&data[i..j]);
                 return min + max;
             }
         }
@@ -75,14 +90,70 @@ fn solve_2_naive(data: &[usize], to_find: usize) -> usize {
     unreachable!()
 }
 
+fn solve_2_fast_forward(data: &[usize], to_find: usize) -> usize {
+    // let to_find_idx = data.iter().enumerate().find(|(_, &num)| num == to_find).unwrap().0;
+    let mut start_idx = 0;
+    let mut end_idx = 0;
+
+    let mut sum = data[start_idx];
+    loop {
+        // add to start_idx until we have enough
+        while sum < to_find {
+            end_idx += 1;
+            sum += data[end_idx];
+        }
+
+        if sum == to_find {
+            let (min, max) = find_min_max(&data[start_idx..end_idx]);
+            return min + max;
+        }
+
+        // sum > to_find
+        sum -= data[start_idx];
+        start_idx += 1;
+
+        if sum == to_find {
+            let (min, max) = find_min_max(&data[start_idx..end_idx]);
+            return min + max;
+        }
+
+        while sum > to_find {
+            sum -= data[end_idx];
+            end_idx -= 1;
+        }
+
+        if sum == to_find {
+            let (min, max) = find_min_max(&data[start_idx..end_idx]);
+            return min + max;
+        }
+
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{parse_input, solve_1};
+    use crate::*;
 
     #[test]
     fn test_challenge_1() {
         let parsed = parse_input(include_str!("../input.txt"));
         let solved = solve_1(&parsed);
         assert_eq!(375054920, solved);
+    }
+
+    #[test]
+    fn test_challenge_2_naive() {
+        let parsed = parse_input(include_str!("../input.txt"));
+        let solved_1 = solve_1(&parsed);
+        let solved = solve_2_naive(&parsed, solved_1);
+        assert_eq!(54142584, solved);
+    }
+
+    #[test]
+    fn test_challenge_2_fast_forward() {
+        let parsed = parse_input(include_str!("../input.txt"));
+        let solved_1 = solve_1(&parsed);
+        let solved = solve_2_fast_forward(&parsed, solved_1);
+        assert_eq!(54142584, solved);
     }
 }
