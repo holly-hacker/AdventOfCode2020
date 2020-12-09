@@ -4,14 +4,14 @@ fn main() {
     let (stdin, time_reading) = time(|| read_stdin());
     let (mut input, time_parsing) = time(|| parse_input(&stdin));
     let (solution_1, time_solving_1) = time(|| solve_1(&mut input));
-    // let (solution_2, time_solving_2) = time(|| solve_2(&mut input));
+    let (solution_2, time_solving_2) = time(|| solve_2_naive(&mut input, solution_1));
 
     println!("solution 1: {}", solution_1);
-    // println!("solution 1: {}", solution_2);
+    println!("solution 2: {}", solution_2);
     println!("took {:?} to read stdin", time_reading);
     println!("took {:?} to read input", time_parsing);
     println!("took {:?} to solve 1", time_solving_1);
-    // println!("took {:?} to solve 2", time_solving_2);
+    println!("took {:?} to solve 2 (used solution of part 1)", time_solving_2);
 }
 
 fn parse_input(input: &str) -> Vec<usize> {
@@ -59,6 +59,20 @@ fn solve_1(data: &[usize]) -> usize {
     }
 
     unreachable!();
+}
+
+fn solve_2_naive(data: &[usize], to_find: usize) -> usize {
+    for i in 0..data.len() {
+        for j in i..data.len() {
+            if data.iter().skip(i).take(j-i).sum::<usize>() == to_find {
+                let min = data.iter().skip(i).take(j-i).min().unwrap();
+                let max = data.iter().skip(i).take(j-i).max().unwrap();
+                return min + max;
+            }
+        }
+    }
+    
+    unreachable!()
 }
 
 #[cfg(test)]
