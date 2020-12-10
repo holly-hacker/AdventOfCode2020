@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 include!("../../helpers.rs");
 
 fn main() {
@@ -49,30 +47,30 @@ fn solve_1(data: &[usize]) -> usize {
     tuple.0 * tuple.2
 }
 
-fn count_paths(data: &[usize], map: &mut HashMap<usize, usize>) {
+fn count_paths(data: &[usize], map: &mut [usize; 256]) {
     let start = data[0];
     let mut paths = 0;
 
     for i in 1..=3 {
         if let Some(&first) = data.get(i) {
             if matches!(first - start, 1 | 2 | 3) {
-                paths += map[&first];
+                paths += map[first];
             }
         }
     }
 
-    map.insert(start, paths);
+    map[start] = paths;
 }
 
 fn solve_2(data: &[usize]) -> usize {
     // TODO: can change with stackbuffer
-    let mut map = HashMap::<usize, usize>::new();
-    map.insert(data[data.len() - 1], 1);
+    let mut map = [0usize; 256];
+    map[data[data.len() - 1]] = 1;
     for idx in (0..data.len() - 1).rev() {
         count_paths(&data[idx..], &mut map);
     }
 
-    *map.get(&1).unwrap_or(&0) + *map.get(&2).unwrap_or(&0) + *map.get(&3).unwrap_or(&0)
+    map[1] + map[2] + map[3]
 }
 
 #[cfg(test)]
