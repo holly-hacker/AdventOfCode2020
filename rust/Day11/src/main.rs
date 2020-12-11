@@ -32,8 +32,8 @@ impl Seat {
 
 #[derive(Clone)]
 struct SeatConfiguration {
-    width: i32,
-    height: i32,
+    width: usize,
+    height: usize,
     buffer1: Vec<Vec<Seat>>,
     buffer2: Vec<Vec<Seat>>,
     current_buffer: bool,
@@ -45,8 +45,8 @@ impl SeatConfiguration {
         let buffer2 = buffer1.iter().map(|x| x.to_vec()).collect();
 
         Self {
-            width: buffer1.len() as i32,
-            height: buffer1[0].len() as i32,
+            width: buffer1.len(),
+            height: buffer1[0].len(),
             buffer1,
             buffer2,
             current_buffer: false,
@@ -91,7 +91,7 @@ impl SeatConfiguration {
 
     fn run_iteration<F>(&mut self, f: F, max_seats: usize)
     where
-        F: Fn(&SeatConfiguration, i32, i32) -> usize,
+        F: Fn(&SeatConfiguration, usize, usize) -> usize,
     {
         for x in 0..self.width {
             for y in 0..self.height {
@@ -116,11 +116,12 @@ impl SeatConfiguration {
         true
     }
 
-    fn calculate_layout<F>(&self, x: i32, y: i32, f: &F, max_seats: usize) -> Seat
+    fn calculate_layout<F>(&self, x: usize, y: usize, f: &F, max_seats: usize) -> Seat
     where
-        F: Fn(&SeatConfiguration, i32, i32) -> usize,
+        F: Fn(&SeatConfiguration, usize, usize) -> usize,
     {
         // possible optimization: seats on border shouldn't really change once occupied
+        // possible optimization: only iterate enough times to see if we're over max_seats
         let sum = f(&self, x, y);
 
         let (source, _) = self.get_buffers();
@@ -132,14 +133,14 @@ impl SeatConfiguration {
         }
     }
 
-    fn calculate_direct_neighbours(&self, x: i32, y: i32) -> usize {
+    fn calculate_direct_neighbours(&self, x: usize, y: usize) -> usize {
         let mut sum = 0;
         for x1 in -1..=1 {
             for y1 in -1..=1 {
                 if x1 == 0 && y1 == 0 {
                     continue;
                 }
-                sum += if self.is_occupied(x + x1, y + y1) == Seat::Occupied {
+                sum += if self.is_occupied(x as i32 + x1, y as i32 + y1) == Seat::Occupied {
                     1
                 } else {
                     0
@@ -149,7 +150,7 @@ impl SeatConfiguration {
         sum
     }
 
-    fn calculate_indirect_neighbours(&self, x: i32, y: i32) -> usize {
+    fn calculate_indirect_neighbours(&self, x: usize, y: usize) -> usize {
         let mut sum = 0;
         for x1 in -1..=1 {
             for y1 in -1..=1 {
@@ -157,8 +158,8 @@ impl SeatConfiguration {
                     continue;
                 }
 
-                let mut x = x;
-                let mut y = y;
+                let mut x = x as i32;
+                let mut y = y as i32;
                 let found = loop {
                     x += x1;
                     y += y1;
@@ -178,9 +179,9 @@ impl SeatConfiguration {
     }
 
     fn is_occupied(&self, x: i32, y: i32) -> Seat {
-        if x < 0 || x >= self.width {
+        if x < 0 || x >= self.width as i32 {
             Seat::OutOfBounds
-        } else if y < 0 || y >= self.height {
+        } else if y < 0 || y >= self.height as i32 {
             Seat::OutOfBounds
         } else {
             let (buffer, _) = self.get_buffers();
