@@ -8,6 +8,7 @@ fn main() {
     let (solution_1, time_solving_1) = time(|| {
         ShipPosition::default()
             .run_instructions(&input)
+            .location
             .get_manhattan_distance()
     });
 
@@ -22,17 +23,19 @@ fn main() {
 mod challenge {
     #[derive(Default, Debug)]
     pub struct ShipPosition {
-        pub x: i32,
-        pub y: i32,
+        pub location: Location,
         pub direction: Direction,
     }
+
+    #[derive(Default, Debug)]
+    pub struct Location(pub i32, pub i32);
 
     pub struct Instruction {
         action: Action,
         value: i32,
     }
 
-    #[derive(Eq, PartialEq, Debug)]
+    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
     pub enum Direction {
         North,
         South,
@@ -60,56 +63,64 @@ mod challenge {
             x
         }
 
-        pub fn get_manhattan_distance(&self) -> usize {
-            (self.x.abs() + self.y.abs()) as usize
-        }
-
         fn run_instruction(self, instruction: &Instruction) -> Self {
             match instruction.action {
-                Action::North => self.with_y_offset(instruction.value),
-                Action::South => self.with_y_offset(-instruction.value),
-                Action::East => self.with_x_offset(instruction.value),
-                Action::West => self.with_x_offset(-instruction.value),
-                Action::Left => self.rotate(-instruction.value),
-                Action::Right => self.rotate(instruction.value),
-                Action::Forward => self.forward(instruction.value),
+                Action::North => Self {
+                    location: self.location.with_y_offset(instruction.value),
+                    ..self
+                },
+                Action::South => Self {
+                    location: self.location.with_y_offset(-instruction.value),
+                    ..self
+                },
+                Action::East => Self {
+                    location: self.location.with_x_offset(instruction.value),
+                    ..self
+                },
+                Action::West => Self {
+                    location: self.location.with_x_offset(-instruction.value),
+                    ..self
+                },
+                Action::Left => Self {
+                    direction: self.direction.rotate_right(-instruction.value),
+                    ..self
+                },
+                Action::Right => Self {
+                    direction: self.direction.rotate_right(instruction.value),
+                    ..self
+                },
+                Action::Forward => Self {
+                    location: self
+                        .location
+                        .move_towards(self.direction, instruction.value),
+                    ..self
+                },
             }
         }
+    }
 
-        fn with_x_offset(self, x: i32) -> Self {
-            Self {
-                x: self.x + x,
-                ..self
-            }
+    impl Location {
+        pub fn get_manhattan_distance(&self) -> usize {
+            (self.0.abs() + self.1.abs()) as usize
         }
 
-        fn with_y_offset(self, y: i32) -> Self {
-            Self {
-                y: self.y + y,
-                ..self
-            }
+        pub fn with_x_offset(self, x: i32) -> Self {
+            Self(self.0 + x, self.1)
         }
 
-        fn rotate(self, degrees: i32) -> Self {
-            Self {
-                direction: self.direction.rotate_right(degrees),
-                ..self
-            }
+        pub fn with_y_offset(self, y: i32) -> Self {
+            Self(self.0, self.1 + y)
         }
 
-        fn forward(self, amount: i32) -> Self {
-            let (x, y) = match self.direction {
+        pub fn move_towards(self, direction: Direction, amount: i32) -> Self {
+            let (x, y) = match direction {
                 Direction::North => (0, 1),
                 Direction::South => (0, -1),
                 Direction::East => (1, 0),
                 Direction::West => (-1, 0),
             };
 
-            Self {
-                x: self.x + amount * x,
-                y: self.y + amount * y,
-                ..self
-            }
+            Self(self.0 + amount * x, self.1 + amount * y)
         }
     }
 
@@ -174,10 +185,10 @@ mod tests {
         let parsed = Instruction::parse(TEST_INPUT);
         let position = ShipPosition::default();
         let position = position.run_instructions(&parsed);
-        let distance = position.get_manhattan_distance();
+        let distance = position.location.get_manhattan_distance();
 
-        assert_eq!(17, position.x);
-        assert_eq!(-8, position.y);
+        assert_eq!(17, position.location.0);
+        assert_eq!(-8, position.location.1);
         assert_eq!(25, distance);
     }
 }
