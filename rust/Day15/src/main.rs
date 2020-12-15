@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 include!("../../helpers.rs");
 
 fn main() {
@@ -21,26 +19,24 @@ fn parse(s: &str) -> Vec<usize> {
 }
 
 fn solve(data: &[usize], limit: usize) -> usize {
-    let mut map = HashMap::<usize, usize>::new();
+    let mut map = vec![usize::MAX; limit];
     for (i, &val) in data.iter().enumerate().take(data.len() - 1) {
         // println!("Adding starting number {}", val);
-        map.insert(val, i); // 0-0, 3-1, 6-2
+        map[val] = i; // 0-0, 3-1, 6-2
     }
 
     let mut next = *data.iter().last().unwrap();
     // println!("Adding starting number {}", next);
-    for i in (data.len() - 1)..(limit-1) {
-        let next2 = map
-            .get(&next)
-            .map(|&n| {
-                //println!("last spoken in {}, which has been spoken before in turn {}. returning {}-{}={}", next, n, i, n, i-n);
-                i - n
-            })
-            .unwrap_or_else(|| {
-                //println!("last spoken in {}, which is new", next);
-                0
-            });
-        map.insert(next, i);
+    for i in (data.len() - 1)..(limit - 1) {
+        let mut next2 = map[next];
+        next2 = if next2 != usize::MAX {
+            //println!("last spoken in {}, which has been spoken before in turn {}. returning {}-{}={}", next, n, i, n, i-n);
+            i - next2
+        } else {
+            //println!("last spoken in {}, which is new", next);
+            0
+        };
+        map[next] = i;
         next = next2;
     }
 
