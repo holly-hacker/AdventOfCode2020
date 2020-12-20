@@ -17,18 +17,107 @@ fn main() {
 }
 
 mod challenge {
-    use std::{collections::VecDeque, fmt::Debug};
+    use std::{
+        collections::VecDeque,
+        fmt::Debug,
+        marker::PhantomData,
+        ops::{Add, Index, IndexMut},
+    };
+
+    use impl_3d::{Dimensions3D, Neighbours3D, Position3D};
 
     #[derive(Clone)]
     pub struct Input {
         plane: Conway2D,
     }
 
+    pub trait Position: Add<Self> + Copy + Clone + Sized {
+        fn iterate_neighbour_positions<F>(&self, fun: F)
+        where
+            F: FnMut(Self);
+    }
+
+    pub trait Neighbours<TPosition>: Default {
+        fn set(&mut self, index: usize, value: bool);
+        // PERF: would declare these const, but const trait functions are not stabilized yet
+        fn get_buffer(&self) -> &[bool];
+        fn get_center_index() -> usize;
+        fn to_index(position: TPosition) -> usize;
+
+        fn get_self(&self) -> bool {
+            self.get_buffer()[Self::get_center_index()]
+        }
+
+        fn get_live_neighbours(&self) -> usize {
+            self.get_buffer()
+                .iter()
+                .enumerate()
+                .map(|(i, &b)| i != Self::get_center_index() && b)
+                .filter(|&b| b)
+                .count()
+        }
+    }
+
+    pub trait Dimensions<TPosition>
+    where
+        TPosition: Position,
+    {
+        fn with_extremes() -> Self;
+
+        fn iterate_all_positions<F>(&self, fun: F)
+        where
+            F: FnMut(TPosition);
+    }
+
+    pub trait ConwayField<TPosition, TNeighbours, TDimensions>:
+        Index<TPosition, Output = bool> + IndexMut<TPosition> + Clone
+    where
+        TPosition: Position + Add<Output = TPosition>, // TODO: is this Add really needed?
+        TNeighbours: Neighbours<TPosition>,
+        TDimensions: Dimensions<TPosition>,
+    {
+        fn create(vec_2d: Conway2D) -> Self;
+        fn get_dimensions(&self) -> TDimensions;
+        
+        fn get_total_live_count(&self) -> usize {
+            let mut count = 0;
+            let dim = self.get_dimensions();
+            dim.iterate_all_positions(|pos| {
+                if self[pos] {
+                    count += 1;
+                }
+            });
+            count
+        }
+
+        fn get_neighbours(&mut self, position: TPosition) -> TNeighbours {
+            let mut buffer = TNeighbours::default();
+
+            position.iterate_neighbour_positions(|offset| {
+                let position = position + offset;
+                let index = TNeighbours::to_index(offset);
+                buffer.set(index, self[position]);
+            });
+
+            buffer
+        }
+    }
+
     #[derive(Clone)]
-    pub struct Buffer3D {
-        buffer_1: Conway3D,
-        buffer_2: Conway3D,
+    pub struct Buffer<TPosition, TConway, TNeighbours, TDimensions>
+    where
+        TPosition: Position + Add<Output = TPosition>,
+        TConway: ConwayField<TPosition, TNeighbours, TDimensions>,
+        TNeighbours: Neighbours<TPosition>,
+        TDimensions: Dimensions<TPosition>,
+    {
+        buffer_1: TConway,
+        buffer_2: TConway,
         current_buffer: bool,
+
+        phantom_position: PhantomData<TPosition>,
+        phantom_neighbours: PhantomData<TNeighbours>,
+        phantom_dimensions: PhantomData<TDimensions>,
     }
 
     pub type Conway3D = BetterVec<Conway2D>;
@@ -41,50 +130,42 @@ mod challenge {
         start_idx: usize,
     }
 
-    #[derive(Debug)]
-    struct Dimensions3D {
-        x: (isize, isize),
-        y: (isize, isize),
-        z: (isize, isize),
-    }
-
-    #[derive(Clone, Copy)]
-    struct Position3D {
-        x: isize,
-        y: isize,
-        z: isize,
-    }
-
-    #[derive(Debug)]
-    struct Neighbours3D([bool; 3 * 3 * 3]);
-
     impl Input {
         pub fn parse(input: &str) -> Self {
             let plane = Conway2D::parse(input);
-            Self {
-                plane
-            }
+            Self { plane }
         }
 
         pub fn solve_1(&self) -> usize {
-            let mut buffer = Buffer3D::create(self.plane.clone());
+            let mut buffer = Buffer::<Position3D, Conway3D, Neighbours3D, Dimensions3D>::create(
+                self.plane.clone(),
+            );
             buffer.solve();
             buffer.get_buffers().0.get_total_live_count()
         }
     }
 
-    impl Buffer3D {
+    impl<
+            TPosition: Position + Add<Output = TPosition>,
+            TConway: ConwayField<TPosition, TNeighbours, TDimensions>,
+            TNeighbours: Neighbours<TPosition>,
+            TDimensions: Dimensions<TPosition>,
+        > Buffer<TPosition, TConway, TNeighbours, TDimensions>
+    {
         pub fn create(plane: Conway2D) -> Self {
-            let cubes = Conway3D::create(plane);
+            let cubes = TConway::create(plane);
 
             Self {
                 buffer_2: cubes.clone(),
                 buffer_1: cubes,
                 current_buffer: false,
+                phantom_position: PhantomData,
+                phantom_neighbours: PhantomData,
+                phantom_dimensions: PhantomData,
             }
         }
 
-        fn get_buffers(&mut self) -> (&mut Conway3D, &mut Conway3D) {
+        fn get_buffers(&mut self) -> (&mut TConway, &mut TConway) {
             if !self.current_buffer {
                 (&mut self.buffer_1, &mut self.buffer_2)
             } else {
@@ -101,98 +182,24 @@ mod challenge {
                 let (src, dst) = self.get_buffers();
                 let dim = src.get_dimensions();
 
-                for z in (dim.z.0 - 1)..(dim.z.1 + 1) {
-                    for y in (dim.y.0 - 1)..(dim.y.1 + 1) {
-                        for x in (dim.x.0 - 1)..(dim.x.1 + 1) {
-                            let position = Position3D { x, y, z };
-                            let neighbours = src.get_neighbours(position);
+                dim.iterate_all_positions(|position| {
+                    let neighbours = src.get_neighbours(position);
 
-                            let active = neighbours.get_self();
-                            let active_neighbours = neighbours.get_live_neighbours();
-                            debug_assert_eq!(src.get_3d(position), active);
+                    let active = neighbours.get_self();
+                    let active_neighbours = neighbours.get_live_neighbours();
+                    debug_assert_eq!(src[position], active);
 
-                            if active && !(active_neighbours == 2 || active_neighbours == 3) {
-                                *dst.get_3d_mut(position) = false;
-                            } else if !active && (active_neighbours == 3) {
-                                *dst.get_3d_mut(position) = true;
-                            } else if dst.get_3d(position) != active {
-                                *dst.get_3d_mut(position) = active;
-                            }
-                        }
+                    if active && !(active_neighbours == 2 || active_neighbours == 3) {
+                        dst[position] = false;
+                    } else if !active && (active_neighbours == 3) {
+                        dst[position] = true;
+                    } else if dst[position] != active {
+                        dst[position] = active;
                     }
-                }
+                });
 
                 self.swap_buffers();
             }
-        }
-    }
-
-    impl Conway3D {
-        fn create(vec_2d: Conway2D) -> Self {
-            let vec_3d = std::iter::once(vec_2d)
-                .collect::<VecDeque<BetterVec<BetterVec<bool>>>>()
-                .into();
-
-            vec_3d
-        }
-
-        fn get_neighbours(&mut self, position: Position3D) -> Neighbours3D {
-            let mut buffer = [false; 3 * 3 * 3];
-            for z2 in -1..=1isize {
-                for y2 in -1..=1isize {
-                    for x2 in -1..=1isize {
-                        let x = position.x + x2 as isize;
-                        let y = position.y + y2 as isize;
-                        let z = position.z + z2 as isize;
-                        let position = Position3D { x, y, z };
-                        let offset = (x2 + 1) + (y2 + 1) * 3 + (z2 + 1) * 3 * 3;
-                        buffer[offset as usize] = self.get_3d(position);
-                    }
-                }
-            }
-
-            Neighbours3D(buffer)
-        }
-
-        fn get_3d(&self, position: Position3D) -> bool {
-            *self
-                .get(position.z)
-                .and_then(|a| a.get(position.y).and_then(|a| a.get(position.x)))
-                .unwrap_or(&false)
-        }
-
-        fn get_3d_mut(&mut self, position: Position3D) -> &mut bool {
-            self.get_mut(position.z)
-                .get_mut(position.y)
-                .get_mut(position.x)
-        }
-
-        fn get_dimensions(&self) -> Dimensions3D {
-            let mut dim = Dimensions3D::with_extremes();
-
-            dim.z = self.get_min_max();
-
-            for vec_2d in &self.data {
-                let dim_y = vec_2d.get_min_max();
-                dim.y.0 = isize::min(dim.y.0, dim_y.0);
-                dim.y.1 = isize::max(dim.y.1, dim_y.1);
-
-                for vec_1d in &vec_2d.data {
-                    let dim_x = vec_1d.get_min_max();
-                    dim.x.0 = isize::min(dim.x.0, dim_x.0);
-                    dim.x.1 = isize::max(dim.x.1, dim_x.1);
-                }
-            }
-
-            dim
-        }
-
-        fn get_total_live_count(&self) -> usize {
-            self.data
-                .iter()
-                .flat_map(|y| y.data.iter().flat_map(|x| x.data.iter()))
-                .filter(|&&b| b)
-                .count()
         }
     }
 
@@ -291,29 +298,150 @@ mod challenge {
         }
     }
 
-    impl Dimensions3D {
-        fn with_extremes() -> Self {
-            Self {
-                x: (isize::MAX, isize::MIN),
-                y: (isize::MAX, isize::MIN),
-                z: (isize::MAX, isize::MIN),
+    mod impl_3d {
+        use std::{
+            collections::VecDeque,
+            ops::{Add, Index, IndexMut},
+        };
+
+        use super::{Conway2D, Conway3D, ConwayField, Dimensions, Neighbours, Position};
+
+        #[derive(Debug, Clone, Copy)]
+        pub struct Position3D {
+            pub x: isize,
+            pub y: isize,
+            pub z: isize,
+        }
+
+        #[derive(Debug)]
+        pub struct Dimensions3D {
+            pub x: (isize, isize),
+            pub y: (isize, isize),
+            pub z: (isize, isize),
+        }
+
+        #[derive(Debug)]
+        pub struct Neighbours3D(pub [bool; 3 * 3 * 3]);
+
+        impl Position for Position3D {
+            fn iterate_neighbour_positions<F>(&self, mut fun: F)
+            where
+                F: FnMut(Position3D),
+            {
+                for z in -1..=1isize {
+                    for y in -1..=1isize {
+                        for x in -1..=1isize {
+                            fun(Position3D { x, y, z });
+                        }
+                    }
+                }
             }
         }
-    }
 
-    impl Neighbours3D {
-        const CENTER: usize = 1 + 1 * 3 + 1 * 3 * 3;
-        fn get_self(&self) -> bool {
-            self.0[Self::CENTER]
+        impl Add<Self> for Position3D {
+            type Output = Self;
+
+            fn add(self, rhs: Self) -> Self::Output {
+                Self {
+                    x: self.x + rhs.x,
+                    y: self.y + rhs.y,
+                    z: self.z + rhs.z,
+                }
+            }
         }
 
-        fn get_live_neighbours(&self) -> usize {
-            self.0
-                .iter()
-                .enumerate()
-                .map(|(i, &b)| i != Self::CENTER && b)
-                .filter(|&b| b)
-                .count()
+        impl Index<Position3D> for Conway3D {
+            type Output = bool;
+
+            fn index(&self, index: Position3D) -> &Self::Output {
+                self.get(index.z)
+                    .and_then(|a| a.get(index.y).and_then(|a| a.get(index.x)))
+                    .unwrap_or(&false)
+            }
+        }
+
+        impl IndexMut<Position3D> for Conway3D {
+            fn index_mut(&mut self, index: Position3D) -> &mut Self::Output {
+                self.get_mut(index.z).get_mut(index.y).get_mut(index.x)
+            }
+        }
+
+        impl Dimensions<Position3D> for Dimensions3D {
+            fn with_extremes() -> Self {
+                Self {
+                    x: (isize::MAX, isize::MIN),
+                    y: (isize::MAX, isize::MIN),
+                    z: (isize::MAX, isize::MIN),
+                }
+            }
+
+            fn iterate_all_positions<F>(&self, mut fun: F)
+            where
+                F: FnMut(Position3D),
+            {
+                for z in (self.z.0 - 1)..(self.z.1 + 1) {
+                    for y in (self.y.0 - 1)..(self.y.1 + 1) {
+                        for x in (self.x.0 - 1)..(self.x.1 + 1) {
+                            fun(Position3D { x, y, z });
+                        }
+                    }
+                }
+            }
+        }
+
+        impl Neighbours<Position3D> for Neighbours3D {
+            fn get_buffer(&self) -> &[bool] {
+                &self.0
+            }
+
+            fn get_center_index() -> usize {
+                1 + 1 * 3 + 1 * 3 * 3
+            }
+
+            fn to_index(position: Position3D) -> usize {
+                ((position.x + 1) + (position.y + 1) * 3 + (position.z + 1) * 3 * 3) as usize
+            }
+
+            fn set(&mut self, index: usize, value: bool) {
+                self.0[index] = value;
+            }
+        }
+
+        impl Default for Neighbours3D {
+            fn default() -> Self {
+                Self([false; 3 * 3 * 3])
+            }
+        }
+
+        impl ConwayField<Position3D, Neighbours3D, Dimensions3D> for Conway3D {
+            fn create(vec_2d: Conway2D) -> Self {
+                let vec_3d = std::iter::once(vec_2d)
+                    .collect::<VecDeque<Conway2D>>()
+                    .into();
+
+                vec_3d
+            }
+
+            // TODO: change to use a function that iterates over all positions and takes highest? -> less code reuse
+            fn get_dimensions(&self) -> Dimensions3D {
+                let mut dim = Dimensions3D::with_extremes();
+
+                dim.z = self.get_min_max();
+
+                for vec_2d in &self.data {
+                    let dim_y = vec_2d.get_min_max();
+                    dim.y.0 = isize::min(dim.y.0, dim_y.0);
+                    dim.y.1 = isize::max(dim.y.1, dim_y.1);
+
+                    for vec_1d in &vec_2d.data {
+                        let dim_x = vec_1d.get_min_max();
+                        dim.x.0 = isize::min(dim.x.0, dim_x.0);
+                        dim.x.1 = isize::max(dim.x.1, dim_x.1);
+                    }
+                }
+
+                dim
+            }
         }
     }
 }
