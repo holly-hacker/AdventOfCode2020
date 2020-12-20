@@ -6,14 +6,14 @@ fn main() {
     let (stdin, time_reading) = time(|| read_stdin());
     let (input, time_parsing) = time(|| Input::parse(&stdin));
     let (solution_1, time_solving_1) = time(|| input.solve_1());
-    // let (solution_2, time_solving_2) = time(|| input.solve_2());
+    let (solution_2, time_solving_2) = time(|| input.solve_2());
 
     println!("solution 1: {}", solution_1);
-    // println!("solution 2: {}", solution_2);
+    println!("solution 2: {}", solution_2);
     println!("took {:?} to read stdin", time_reading);
     println!("took {:?} to read input", time_parsing);
     println!("took {:?} to solve 1", time_solving_1);
-    // println!("took {:?} to solve 2", time_solving_2);
+    println!("took {:?} to solve 2", time_solving_2);
 }
 
 mod challenge {
@@ -24,7 +24,8 @@ mod challenge {
         ops::{Add, Index, IndexMut},
     };
 
-    use impl_3d::{Dimensions3D, Neighbours3D, Position3D};
+    use impl_3d::*;
+    use impl_4d::*;
 
     #[derive(Clone)]
     pub struct Input {
@@ -78,7 +79,7 @@ mod challenge {
     {
         fn create(vec_2d: Conway2D) -> Self;
         fn get_dimensions(&self) -> TDimensions;
-        
+
         fn get_total_live_count(&self) -> usize {
             let mut count = 0;
             let dim = self.get_dimensions();
@@ -120,6 +121,7 @@ mod challenge {
         phantom_dimensions: PhantomData<TDimensions>,
     }
 
+    pub type Conway4D = BetterVec<Conway3D>;
     pub type Conway3D = BetterVec<Conway2D>;
     pub type Conway2D = BetterVec<Conway1D>;
     pub type Conway1D = BetterVec<bool>;
@@ -138,6 +140,14 @@ mod challenge {
 
         pub fn solve_1(&self) -> usize {
             let mut buffer = Buffer::<Position3D, Conway3D, Neighbours3D, Dimensions3D>::create(
+                self.plane.clone(),
+            );
+            buffer.solve();
+            buffer.get_buffers().0.get_total_live_count()
+        }
+
+        pub fn solve_2(&self) -> usize {
+            let mut buffer = Buffer::<Position4D, Conway4D, Neighbours4D, Dimensions4D>::create(
                 self.plane.clone(),
             );
             buffer.solve();
@@ -444,6 +454,179 @@ mod challenge {
             }
         }
     }
+
+    mod impl_4d {
+        use std::{
+            collections::VecDeque,
+            ops::{Add, Index, IndexMut},
+        };
+
+        use super::{Conway2D, Conway3D, Conway4D, ConwayField, Dimensions, Neighbours, Position};
+
+        #[derive(Debug, Clone, Copy)]
+        pub struct Position4D {
+            pub x: isize,
+            pub y: isize,
+            pub z: isize,
+            pub w: isize,
+        }
+
+        #[derive(Debug)]
+        pub struct Dimensions4D {
+            pub x: (isize, isize),
+            pub y: (isize, isize),
+            pub z: (isize, isize),
+            pub w: (isize, isize),
+        }
+
+        #[derive(Debug)]
+        pub struct Neighbours4D(pub [bool; 3 * 3 * 3 * 3]);
+
+        impl Position for Position4D {
+            fn iterate_neighbour_positions<F>(&self, mut fun: F)
+            where
+                F: FnMut(Position4D),
+            {
+                for w in -1..=1isize {
+                    for z in -1..=1isize {
+                        for y in -1..=1isize {
+                            for x in -1..=1isize {
+                                fun(Position4D { x, y, z, w });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        impl Add<Self> for Position4D {
+            type Output = Self;
+
+            fn add(self, rhs: Self) -> Self::Output {
+                Self {
+                    x: self.x + rhs.x,
+                    y: self.y + rhs.y,
+                    z: self.z + rhs.z,
+                    w: self.w + rhs.w,
+                }
+            }
+        }
+
+        impl Index<Position4D> for Conway4D {
+            type Output = bool;
+
+            fn index(&self, index: Position4D) -> &Self::Output {
+                self.get(index.w)
+                    .and_then(|a| {
+                        a.get(index.z)
+                            .and_then(|a| a.get(index.y).and_then(|a| a.get(index.x)))
+                    })
+                    .unwrap_or(&false)
+            }
+        }
+
+        impl IndexMut<Position4D> for Conway4D {
+            fn index_mut(&mut self, index: Position4D) -> &mut Self::Output {
+                self.get_mut(index.w)
+                    .get_mut(index.z)
+                    .get_mut(index.y)
+                    .get_mut(index.x)
+            }
+        }
+
+        impl Dimensions<Position4D> for Dimensions4D {
+            fn with_extremes() -> Self {
+                Self {
+                    x: (isize::MAX, isize::MIN),
+                    y: (isize::MAX, isize::MIN),
+                    z: (isize::MAX, isize::MIN),
+                    w: (isize::MAX, isize::MIN),
+                }
+            }
+
+            fn iterate_all_positions<F>(&self, mut fun: F)
+            where
+                F: FnMut(Position4D),
+            {
+                for w in (self.w.0 - 1)..(self.w.1 + 1) {
+                    for z in (self.z.0 - 1)..(self.z.1 + 1) {
+                        for y in (self.y.0 - 1)..(self.y.1 + 1) {
+                            for x in (self.x.0 - 1)..(self.x.1 + 1) {
+                                fun(Position4D { x, y, z, w });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        impl Neighbours<Position4D> for Neighbours4D {
+            fn get_buffer(&self) -> &[bool] {
+                &self.0
+            }
+
+            fn get_center_index() -> usize {
+                1 + 1 * 3 + 1 * 3 * 3 + 1 * 3 * 3 * 3
+            }
+
+            fn to_index(position: Position4D) -> usize {
+                ((position.x + 1)
+                    + (position.y + 1) * 3
+                    + (position.z + 1) * 3 * 3
+                    + (position.w + 1) * 3 * 3 * 3) as usize
+            }
+
+            fn set(&mut self, index: usize, value: bool) {
+                self.0[index] = value;
+            }
+        }
+
+        impl Default for Neighbours4D {
+            fn default() -> Self {
+                Self([false; 3 * 3 * 3 * 3])
+            }
+        }
+
+        impl ConwayField<Position4D, Neighbours4D, Dimensions4D> for Conway4D {
+            fn create(vec_2d: Conway2D) -> Self {
+                let vec_3d = std::iter::once(vec_2d)
+                    .collect::<VecDeque<Conway2D>>()
+                    .into();
+
+                let vec_4d = std::iter::once(vec_3d)
+                    .collect::<VecDeque<Conway3D>>()
+                    .into();
+                vec_4d
+            }
+
+            // TODO: change to use a function that iterates over all positions and takes highest? -> less code reuse
+            fn get_dimensions(&self) -> Dimensions4D {
+                let mut dim = Dimensions4D::with_extremes();
+
+                dim.w = self.get_min_max();
+
+                for vec_3d in &self.data {
+                    let dim_z = vec_3d.get_min_max();
+                    dim.z.0 = isize::min(dim.z.0, dim_z.0);
+                    dim.z.1 = isize::max(dim.z.1, dim_z.1);
+
+                    for vec_2d in &vec_3d.data {
+                        let dim_y = vec_2d.get_min_max();
+                        dim.y.0 = isize::min(dim.y.0, dim_y.0);
+                        dim.y.1 = isize::max(dim.y.1, dim_y.1);
+
+                        for vec_1d in &vec_2d.data {
+                            let dim_x = vec_1d.get_min_max();
+                            dim.x.0 = isize::min(dim.x.0, dim_x.0);
+                            dim.x.1 = isize::max(dim.x.1, dim_x.1);
+                        }
+                    }
+                }
+
+                dim
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -456,5 +639,11 @@ mod tests {
     fn test_1() {
         let parsed = Input::parse(TEST_INPUT);
         assert_eq!(112, parsed.solve_1());
+    }
+
+    #[test]
+    fn test_2() {
+        let parsed = Input::parse(TEST_INPUT);
+        assert_eq!(848, parsed.solve_2());
     }
 }
