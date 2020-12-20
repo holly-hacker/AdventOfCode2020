@@ -5,7 +5,7 @@ include!("../../helpers.rs");
 fn main() {
     let (stdin, time_reading) = time(|| read_stdin());
     let (input, time_parsing) = time(|| Input::parse(&stdin));
-    let (solution_1, time_solving_1) = time(|| input.clone().solve_1());
+    let (solution_1, time_solving_1) = time(|| input.solve_1());
     // let (solution_2, time_solving_2) = time(|| input.solve_2());
 
     println!("solution 1: {}", solution_1);
@@ -21,34 +21,61 @@ mod challenge {
 
     #[derive(Clone)]
     pub struct Input {
+        plane: Conway2D,
+    }
+
+    #[derive(Clone)]
+    pub struct Buffer3D {
         buffer_1: Conway3D,
         buffer_2: Conway3D,
         current_buffer: bool,
     }
 
-    type Conway3D = BetterVec<Conway2D>;
-    type Conway2D = BetterVec<Conway1D>;
-    type Conway1D = BetterVec<bool>;
+    pub type Conway3D = BetterVec<Conway2D>;
+    pub type Conway2D = BetterVec<Conway1D>;
+    pub type Conway1D = BetterVec<bool>;
 
     #[derive(Clone, Default)]
-    struct BetterVec<T> {
+    pub struct BetterVec<T> {
         data: VecDeque<T>,
         start_idx: usize,
     }
 
     #[derive(Debug)]
-    struct Dimensions {
+    struct Dimensions3D {
         x: (isize, isize),
         y: (isize, isize),
         z: (isize, isize),
     }
 
+    #[derive(Clone, Copy)]
+    struct Position3D {
+        x: isize,
+        y: isize,
+        z: isize,
+    }
+
     #[derive(Debug)]
-    struct Neighbours([bool; 3 * 3 * 3]);
+    struct Neighbours3D([bool; 3 * 3 * 3]);
 
     impl Input {
         pub fn parse(input: &str) -> Self {
-            let cubes = Conway3D::parse(input);
+            let plane = Conway2D::parse(input);
+            Self {
+                plane
+            }
+        }
+
+        pub fn solve_1(&self) -> usize {
+            let mut buffer = Buffer3D::create(self.plane.clone());
+            buffer.solve();
+            buffer.get_buffers().0.get_total_live_count()
+        }
+    }
+
+    impl Buffer3D {
+        pub fn create(plane: Conway2D) -> Self {
+            let cubes = Conway3D::create(plane);
 
             Self {
                 buffer_2: cubes.clone(),
@@ -69,7 +96,7 @@ mod challenge {
             self.current_buffer = !self.current_buffer;
         }
 
-        pub fn solve_1(&mut self) -> usize {
+        fn solve(&mut self) {
             for _ in 0..6 {
                 let (src, dst) = self.get_buffers();
                 let dim = src.get_dimensions();
@@ -77,18 +104,19 @@ mod challenge {
                 for z in (dim.z.0 - 1)..(dim.z.1 + 1) {
                     for y in (dim.y.0 - 1)..(dim.y.1 + 1) {
                         for x in (dim.x.0 - 1)..(dim.x.1 + 1) {
-                            let neighbours = src.get_neighbours(x, y, z);
+                            let position = Position3D { x, y, z };
+                            let neighbours = src.get_neighbours(position);
 
                             let active = neighbours.get_self();
                             let active_neighbours = neighbours.get_live_neighbours();
-                            debug_assert_eq!(src.get_3d(x, y, z), active);
+                            debug_assert_eq!(src.get_3d(position), active);
 
                             if active && !(active_neighbours == 2 || active_neighbours == 3) {
-                                *dst.get_3d_mut(x, y, z) = false;
+                                *dst.get_3d_mut(position) = false;
                             } else if !active && (active_neighbours == 3) {
-                                *dst.get_3d_mut(x, y, z) = true;
-                            } else if dst.get_3d(x, y, z) != active {
-                                *dst.get_3d_mut(x, y, z) = active;
+                                *dst.get_3d_mut(position) = true;
+                            } else if dst.get_3d(position) != active {
+                                *dst.get_3d_mut(position) = active;
                             }
                         }
                     }
@@ -96,28 +124,11 @@ mod challenge {
 
                 self.swap_buffers();
             }
-
-            self.get_buffers().0.get_total_live_count()
         }
     }
 
     impl Conway3D {
-        fn parse(input: &str) -> Self {
-            let vec_2d = input
-                .split('\n')
-                .map(|line| {
-                    line.bytes()
-                        .map(|b| match b {
-                            b'.' => false,
-                            b'#' => true,
-                            _ => panic!("unknown character: {}", b),
-                        })
-                        .collect::<VecDeque<bool>>()
-                        .into()
-                })
-                .collect::<VecDeque<BetterVec<bool>>>()
-                .into();
-
+        fn create(vec_2d: Conway2D) -> Self {
             let vec_3d = std::iter::once(vec_2d)
                 .collect::<VecDeque<BetterVec<BetterVec<bool>>>>()
                 .into();
@@ -125,36 +136,39 @@ mod challenge {
             vec_3d
         }
 
-        fn get_neighbours(&mut self, x: isize, y: isize, z: isize) -> Neighbours {
+        fn get_neighbours(&mut self, position: Position3D) -> Neighbours3D {
             let mut buffer = [false; 3 * 3 * 3];
             for z2 in -1..=1isize {
                 for y2 in -1..=1isize {
                     for x2 in -1..=1isize {
-                        let x = x + x2 as isize;
-                        let y = y + y2 as isize;
-                        let z = z + z2 as isize;
+                        let x = position.x + x2 as isize;
+                        let y = position.y + y2 as isize;
+                        let z = position.z + z2 as isize;
+                        let position = Position3D { x, y, z };
                         let offset = (x2 + 1) + (y2 + 1) * 3 + (z2 + 1) * 3 * 3;
-                        buffer[offset as usize] = self.get_3d(x, y, z);
+                        buffer[offset as usize] = self.get_3d(position);
                     }
                 }
             }
 
-            Neighbours(buffer)
+            Neighbours3D(buffer)
         }
 
-        fn get_3d(&self, x: isize, y: isize, z: isize) -> bool {
+        fn get_3d(&self, position: Position3D) -> bool {
             *self
-                .get(z)
-                .and_then(|a| a.get(y).and_then(|a| a.get(x)))
+                .get(position.z)
+                .and_then(|a| a.get(position.y).and_then(|a| a.get(position.x)))
                 .unwrap_or(&false)
         }
 
-        fn get_3d_mut(&mut self, x: isize, y: isize, z: isize) -> &mut bool {
-            self.get_mut(z).get_mut(y).get_mut(x)
+        fn get_3d_mut(&mut self, position: Position3D) -> &mut bool {
+            self.get_mut(position.z)
+                .get_mut(position.y)
+                .get_mut(position.x)
         }
 
-        fn get_dimensions(&self) -> Dimensions {
-            let mut dim = Dimensions::with_extremes();
+        fn get_dimensions(&self) -> Dimensions3D {
+            let mut dim = Dimensions3D::with_extremes();
 
             dim.z = self.get_min_max();
 
@@ -196,6 +210,25 @@ mod challenge {
             }
 
             Ok(())
+        }
+    }
+
+    impl Conway2D {
+        pub fn parse(input: &str) -> Self {
+            input
+                .split('\n')
+                .map(|line| {
+                    line.bytes()
+                        .map(|b| match b {
+                            b'.' => false,
+                            b'#' => true,
+                            _ => panic!("unknown character: {}", b),
+                        })
+                        .collect::<VecDeque<bool>>()
+                        .into()
+                })
+                .collect::<VecDeque<BetterVec<bool>>>()
+                .into()
         }
     }
 
@@ -258,7 +291,7 @@ mod challenge {
         }
     }
 
-    impl Dimensions {
+    impl Dimensions3D {
         fn with_extremes() -> Self {
             Self {
                 x: (isize::MAX, isize::MIN),
@@ -268,7 +301,7 @@ mod challenge {
         }
     }
 
-    impl Neighbours {
+    impl Neighbours3D {
         const CENTER: usize = 1 + 1 * 3 + 1 * 3 * 3;
         fn get_self(&self) -> bool {
             self.0[Self::CENTER]
@@ -294,6 +327,6 @@ mod tests {
     #[test]
     fn test_1() {
         let parsed = Input::parse(TEST_INPUT);
-        assert_eq!(112, parsed.clone().solve_1());
+        assert_eq!(112, parsed.solve_1());
     }
 }
