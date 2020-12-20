@@ -81,15 +81,14 @@ mod challenge {
 
                             let active = neighbours.get_self();
                             let active_neighbours = neighbours.get_live_neighbours();
-                            debug_assert_eq!(*src.get_mut(z).get_mut(y).get_mut(x), active);
+                            debug_assert_eq!(src.get_3d(x, y, z), active);
 
-                            let r = dst.get_mut(z).get_mut(y).get_mut(x);
                             if active && !(active_neighbours == 2 || active_neighbours == 3) {
-                                *r = false;
+                                *dst.get_3d_mut(x, y, z) = false;
                             } else if !active && (active_neighbours == 3) {
-                                *r = true;
-                            } else {
-                                *r = active;
+                                *dst.get_3d_mut(x, y, z) = true;
+                            } else if dst.get_3d(x, y, z) != active {
+                                *dst.get_3d_mut(x, y, z) = active;
                             }
                         }
                     }
@@ -143,11 +142,15 @@ mod challenge {
             Neighbours(buffer)
         }
 
-        fn get_3d(&mut self, x: isize, y: isize, z: isize) -> bool {
+        fn get_3d(&self, x: isize, y: isize, z: isize) -> bool {
             *self
                 .get(z)
                 .and_then(|a| a.get(y).and_then(|a| a.get(x)))
                 .unwrap_or(&false)
+        }
+
+        fn get_3d_mut(&mut self, x: isize, y: isize, z: isize) -> &mut bool {
+            self.get_mut(z).get_mut(y).get_mut(x)
         }
 
         fn get_dimensions(&self) -> Dimensions {
@@ -282,6 +285,7 @@ mod challenge {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use crate::challenge::Input;
 
